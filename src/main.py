@@ -8,7 +8,7 @@ from src.models.response import Response
 
 def create_app() -> Flask:
     """
-    创建服务
+    Create App
     """
     app = Flask(__name__, static_url_path='/')
     app.url_map.strict_slashes = False

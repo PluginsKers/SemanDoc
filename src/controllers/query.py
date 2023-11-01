@@ -1,7 +1,3 @@
-"""
-controller: query
-desc:
-"""
 from src.models.response import Response
 
 
