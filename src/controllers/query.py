@@ -7,13 +7,13 @@ def search(query: str, result_type: str, iterations: int, model: str):
     building a thread-safe process for working with index files.
 
     Args:
-        query (str): The search query.
-        result_type (str): The type of result to return (json, txt, jsonl).
-        iterations (int): The number of search iterations.
-        model (str): The model to use for searching.
+        - query (str): The search query.
+        - result_type (str): The type of result to return (json, txt, jsonl).
+        - iterations (int): The number of search iterations.
+        - model (str): The model to use for searching.
 
     Returns:
-        Response: A Response object containing the search results.
+        - Response: A Response object containing the search results.
     """
 
     # Check if the result_type is valid

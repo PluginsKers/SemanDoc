@@ -4,10 +4,6 @@ import torch
 
 
 class EmbeddingModelManager:
-    """
-    加载 Embedding 层，提供方法
-    """
-
     def __init__(self, pretrained_model_name_or_path: str):
         self.model = AutoModel.from_pretrained(pretrained_model_name_or_path)
         self.tokenizer = AutoTokenizer.from_pretrained(

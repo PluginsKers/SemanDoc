@@ -10,8 +10,8 @@ class KnowledgeBase:
         Initializes the knowledge base, reads or creates index files.
 
         Args:
-            index_dir_path (str): Path to the index folder.
-            dim (int): Dimension of the index, default is 1.
+            - index_dir_path (str): Path to the index folder.
+            - dim (int): Dimension of the index, default is 1.
         """
         self.dim = dim
         self.index_dir_path = index_dir_path
