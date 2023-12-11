@@ -5,3 +5,5 @@ venv/
 *.pyc
 
 *.index
+
+/data

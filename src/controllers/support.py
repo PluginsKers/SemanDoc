@@ -1,15 +1,15 @@
-from src.models.response import Response
+from typing import Union, Optional, List, Tuple
 
 
-def error(location, remark):
-    """
-    Support error marks
-    """
-    return Response(location, remark).success()
+def error(
+    location: str,
+    comment: Optional[str] = None
+):
+    print(location, comment)
 
 
-def reward(location, remark):
-    """
-    Support reward marks
-    """
-    return Response(location, remark).success()
+def reward(
+    location: str,
+    comment: Optional[str] = None
+):
+    print(location, comment)

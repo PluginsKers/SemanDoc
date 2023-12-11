@@ -1,48 +1,36 @@
+import json
+
 from flask import Blueprint, request
-from src.models.response import Response
-from src.controllers.query import search as search_func
+from src.modules.response import Response
+from src.controllers.query import search_documents
 
-# Create a Flask Blueprint for the query functionality
-query_blue = Blueprint('query', __name__)
+query_blueprint = Blueprint('query', __name__)
 
 
-@query_blue.route('/', methods=['GET'])
-def query():
-    """
-    Search Endpoint: Receives user queries and returns search results
+@query_blueprint.route('/', methods=['GET'])
+async def query_route():
+    query = request.args.get('query', type=str)
+    k = request.args.get('k', type=int)
+    _filter = request.args.get('filter', type=str)
 
-    Args:
-        - query (str, required): The search string.
-        - result_type (str, optional):
-            The format of the returned content, default is "json".
-        - iterations (int, optional):
-            The number of content iterations, default is 1.
-        - model (str, optional):
-            The retrieval model to be used, default is "default".
+    try:
+        if query is None or len(query) == 0:
+            raise ValueError('参数 query 错误')
 
-    Returns:
-        - Response: A response containing the search results.
-    """
-    # Get the 'query' parameter from the request
-    argv_query_str = request.args.get('query', type=str)
+        f_dict = None
+        if _filter:
+            f_dict = json.loads(_filter)
 
-    # Check if the required 'query' parameter is provided
-    if argv_query_str is None:
-        return Response('The "query" parameter is required.').error()
+            if not isinstance(f_dict, dict):
+                raise TypeError('参数 filter 错误')
 
-    # Get optional parameters or use defaults if not provided
-    argv_result_type = request.args.get(
-        'result_type', default='json', type=str)
-    
-    # Retrieve the iteration counts for the embedding model
-    argv_iterations = request.args.get('iterations', default=1, type=int)
-    
-    argv_model = request.args.get('model', default='default', type=str)
-
-    # Call the search function with the provided parameters
-    return search_func(
-        argv_query_str,
-        argv_result_type,
-        argv_iterations,
-        argv_model
-    )
+        res = await search_documents(
+            query,
+            k,
+            f_dict
+        )
+        return Response('检索成功', 200, data=res)
+    except ValueError as error:
+        return Response(f'数据错误: {error}', 400)
+    except TypeError as error:
+        return Response(f'参数错误: {error}', 400)
