@@ -1,3 +1,4 @@
+import asyncio
 import os
 import time
 from typing import Optional, Tuple, List, Dict, Any
@@ -50,7 +51,7 @@ class DataBase:
             logger.info('Local Database not found.')
             self.init_index()
 
-    async def save_index(self, index_dir_path: str):
+    def save_index(self, index_dir_path: str):
         """Saves the index to the specified directory path.
 
         Args:
@@ -97,6 +98,47 @@ class DataBase:
         ]
         max_ids = max(all_ids) if all_ids else 0
         return max_ids + 1
+
+    def is_document_currently_valid(self, document: Document) -> bool:
+        """Checks if a document is currently valid based on its metadata.
+
+        Args:
+        - document (Document): Document to check for validity.
+
+        Returns:
+        - bool: True if the document is currently valid, False otherwise.
+
+        Determines document's current validity based on metadata.
+
+        If 'valid_time' is -1, document is considered valid indefinitely.
+
+        If 'valid_time' or 'start_time' metadata is missing,
+        document is considered valid without limitations.
+
+        Compares document's time validity range with current time in seconds.
+
+        Returns True if document is currently within its valid time range,
+        else False.
+        """
+
+        current_time = time.time()
+        valid_time = document.metadata.get('valid_time')
+        start_time = document.metadata.get('start_time')
+
+        # If 'valid_time' in metadata is -1, document is valid indefinitely
+        if valid_time == -1:
+            return True
+
+        # If 'valid_time' or 'start_time' metadata is missing, document is considered valid without limitations
+        if valid_time is None or start_time is None:
+            return True
+
+        # Assuming timestamps are in seconds
+        valid_time = float(valid_time)
+        start_time = float(start_time)
+
+        # Check if the document is within its validity time range
+        return (start_time + valid_time) >= current_time
 
     async def add_documents(self, documents: List[Document]) -> List[Document]:
         """Adds a list of documents to the index.
@@ -244,47 +286,6 @@ class DataBase:
                 id_to_remove.append(_id)
         return self.remove_documents_by_id(id_to_remove)
 
-    def is_document_currently_valid(self, document: Document) -> bool:
-        """Checks if a document is currently valid based on its metadata.
-
-        Args:
-        - document (Document): Document to check for validity.
-
-        Returns:
-        - bool: True if the document is currently valid, False otherwise.
-
-        Determines document's current validity based on metadata.
-
-        If 'valid_time' is -1, document is considered valid indefinitely.
-
-        If 'valid_time' or 'start_time' metadata is missing,
-        document is considered valid without limitations.
-
-        Compares document's time validity range with current time in seconds.
-
-        Returns True if document is currently within its valid time range,
-        else False.
-        """
-
-        current_time = time.time()
-        valid_time = document.metadata.get('valid_time')
-        start_time = document.metadata.get('start_time')
-
-        # If 'valid_time' in metadata is -1, document is valid indefinitely
-        if valid_time == -1:
-            return True
-
-        # If 'valid_time' or 'start_time' metadata is missing, document is considered valid without limitations
-        if valid_time is None or start_time is None:
-            return True
-
-        # Assuming timestamps are in seconds
-        valid_time = float(valid_time)
-        start_time = float(start_time)
-
-        # Check if the document is within its validity time range
-        return (start_time + valid_time) >= current_time
-
     async def search(
         self,
         query: str,
@@ -329,7 +330,21 @@ class DataBase:
         docs = [
             Document(doc.page_content, doc.metadata)
             for doc, _ in docs_and_scores
+        ]
+
+        valid_docs = [
+            doc
+            for doc in docs
             if self.is_document_currently_valid(doc)
         ]
 
-        return docs[:k]
+        invalid_docs_ids = [
+            doc.metadata.get('ids')
+            for doc in docs
+            if not self.is_document_currently_valid(doc)
+        ]
+
+        if len(invalid_docs_ids) > 0:
+            self.remove_documents_by_ids(invalid_docs_ids)
+
+        return valid_docs[:k]
