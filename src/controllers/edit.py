@@ -1,7 +1,7 @@
 from typing import Union, Optional, List, Tuple
 from src.modules.document import Document
 
-from src.global_initializer import get_database
+from src.global_initializer import get_docstore
 
 
 class DatabaseEditError(Exception):
@@ -15,7 +15,7 @@ async def add_document(
     comment: Optional[str] = None
 ) -> Union[Tuple[List[Document]], str]:
     metadata = data['metadata']
-    add_result = await get_database().add_documents([
+    add_result = await get_docstore().add_documents([
         Document(
             page_content=data['page_content'],
             metadata=metadata
@@ -31,7 +31,7 @@ def delete_documents_by_ids(
     ids_to_delete: List[int],
     comment: Optional[str] = None
 ) -> Union[Tuple[int, int], str]:
-    removal_result = get_database().remove_documents_by_ids(ids_to_delete)
+    removal_result = get_docstore().remove_documents_by_ids(ids_to_delete)
     # raise DatabaseEditError(
     #     "Failed to delete documents from the database."
     # )
@@ -43,7 +43,7 @@ def delete_documents_by_id(
     id_to_delete: List[str],
     comment: Optional[str] = None
 ) -> Union[Tuple[int, int], str]:
-    removal_result = get_database().remove_documents_by_id(id_to_delete)
+    removal_result = get_docstore().remove_documents_by_id(id_to_delete)
     # raise DatabaseEditError(
     #     "Failed to delete documents by ID from the database."
     # )
@@ -55,7 +55,7 @@ def delete_documents_by_tags(
     tags_to_delete: List[str],
     comment: Optional[str] = None
 ) -> Union[Tuple[int, int], str]:
-    removal_result = get_database().remove_documents_by_tags(tags_to_delete)
+    removal_result = get_docstore().remove_documents_by_tags(tags_to_delete)
     # raise DatabaseEditError(
     #     "Failed to delete documents by tags from the database."
     # )

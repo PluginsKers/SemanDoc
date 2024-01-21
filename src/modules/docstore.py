@@ -1,18 +1,16 @@
-import asyncio
 import os
 import time
 from typing import Optional, Tuple, List, Dict, Any
 import numpy as np
 
-from langchain.vectorstores import FAISS
+from langchain.vectorstores.faiss import FAISS
 from langchain.embeddings import HuggingFaceBgeEmbeddings
 
 from src.modules.logging import logger
-
 from src.modules.document import Document
 
 
-class DataBase:
+class DocStore:
     def __init__(
         self,
         index_dir_path: str,
@@ -29,67 +27,27 @@ class DataBase:
         )
 
         self.index_dir_path = index_dir_path
-        self.index: Optional[FAISS] = None
-        self.load_index(self.index_dir_path)
+        self.index: Optional[FAISS] = self.get_faiss_index(self.index_dir_path)
 
-    def load_index(self, index_dir_path: str):
-        """Loads the index from the specified directory path.
-
-        Args:
-        - index_dir_path (str):
-            The directory path where the index file is located.
-
-        If the index file exists in the specified path,
-            it loads the index using FAISS.
-        If the index file doesn't exist, it initializes the index.
-        """
+    def get_faiss_index(self, index_dir_path: str) -> FAISS:
         index_path: str = os.path.join(index_dir_path, 'index.faiss')
         if os.path.exists(index_path):
             logger.info('Loaded: %s', index_path)
-            self.index = FAISS.load_local(index_path, self.embedding)
+            index = FAISS.load_local(index_path, self.embedding)
         else:
             logger.info('Local Database not found.')
-            self.init_index()
-
-    def save_index(self, index_dir_path: str):
-        """Saves the index to the specified directory path.
-
-        Args:
-        - index_dir_path (str):
-            The directory path where the index will be saved.
-
-        Saves the index to the specified path using the `save_local` method.
-
-        If an error occurs during the saving process, it logs the exception.
-        """
-        try:
-            index_path: str = os.path.join(index_dir_path, 'index.faiss')
-            self.index.save_local(index_path)
+            index = FAISS.from_documents(
+                [
+                    Document(
+                        page_content='我是一个向量检索系统，是小宁的大脑！',
+                        metadata={'ids': 0, 'tags': ['init_addition']},
+                    )
+                ],
+                self.embedding
+            )
+            index.save_local(index_path)
             logger.info('Saved to the database.')
-        except Exception as e:
-            logger.error('Failed to save database: %s', e)
-
-    def init_index(self):
-        """Initializes the index with a default document.
-
-        Initializes the index using FAISS by creating a document with default
-        content and metadata.
-
-        Saves the initialized index to the specified directory path
-        using `save_index`.
-        """
-        self.index = FAISS.from_documents(
-            [
-                Document(
-                    page_content='我是一个向量检索系统，是小宁的大脑！',
-                    metadata={'ids': 0, 'tags': ['init_addition']},
-                )
-            ],
-            self.embedding
-        )
-
-        # Save the initialized index
-        self.save_index(self.index_dir_path)
+        return index
 
     def get_next_ids(self) -> int:
         all_ids = [
@@ -338,13 +296,13 @@ class DataBase:
             if self.is_document_currently_valid(doc)
         ]
 
-        invalid_docs_ids = [
-            doc.metadata.get('ids')
-            for doc in docs
-            if not self.is_document_currently_valid(doc)
-        ]
+        # invalid_docs_ids = [
+        #     doc.metadata.get('ids')
+        #     for doc in docs
+        #     if not self.is_document_currently_valid(doc)
+        # ]
 
-        if len(invalid_docs_ids) > 0:
-            self.remove_documents_by_ids(invalid_docs_ids)
+        # if len(invalid_docs_ids) > 0:
+        #     self.remove_documents_by_ids(invalid_docs_ids)
 
         return valid_docs[:k]

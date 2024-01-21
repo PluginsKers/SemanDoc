@@ -1,4 +1,4 @@
-from src.modules.database import DataBase
+from src.modules.docstore import DocStore
 
 from src.modules.logging import logger
 
@@ -9,12 +9,12 @@ def initialize():
     global database
     if not database:
         logger.info("加载知识库中...")
-        database = DataBase(
+        database = DocStore(
             "./data/",
             r"D:\Projects\Python\nlp\models\bge-large-zh"
         )
         logger.info("加载知识库完成!")
 
 
-def get_database() -> DataBase:
+def get_docstore() -> DocStore:
     return database
