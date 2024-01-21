@@ -7,3 +7,11 @@ venv/
 *.index
 
 /data
+
+.env
+
+# 忽略所有.pyo文件
+*.pyo
+
+# 忽略log目录下的所有文件
+log
