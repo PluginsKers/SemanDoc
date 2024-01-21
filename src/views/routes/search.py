@@ -4,11 +4,11 @@ from flask import Blueprint, request
 from src.modules.response import Response
 from src.controllers.query import search_documents
 
-query_blueprint = Blueprint('query', __name__)
+search_blueprint = Blueprint('query', __name__)
 
 
-@query_blueprint.route('/', methods=['GET'])
-async def query_route():
+@search_blueprint.route('/', methods=['GET'])
+async def search_route():
     query = request.args.get('query', type=str)
     k = request.args.get('k', type=int)
     _filter = request.args.get('filter', type=str)
