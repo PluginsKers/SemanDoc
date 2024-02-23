@@ -1,7 +1,7 @@
 # Developer Docsing
 
 ```txt
-app/
+src/
 ├── models/ # 模型层, 数据库模型等
 ├── views/ # 视图层, 处理请求和返回响应
 ├── controllers/ # 控制器层, 业务逻辑处理
@@ -87,8 +87,7 @@ app/
     "metadata": {
         "id": 0, # int 数据唯一标识
         "splitter": "default", # str 分割器标识
-        "model": [], # EmbeddingModelManager -> List[str] 检索模型
-        "tag": [], # TagManager -> List[str] 标签管理
+        "tags": [], # TagManager -> List[str] 标签管理
         "related": False, # bool 是否被切分，用于匹配动态切分的标识
         "start_time": 0, # int 开始生效时间，时间戳
         "valid_time": 3600, # int 数据生效的时间，时间戳，-1为长效信息
@@ -147,12 +146,11 @@ app/
 
 请求参数如下：
 
-| 参数（*为必传参数） | 描述                                                     |
-| :------------------ | -------------------------------------------------------- |
-| ***search**         | 字符串，搜索用的字符串                                   |
-| result_type         | "json" \| "txt" \| "jsonl"，返回的内容格式，默认: "json" |
-| iterations          | 数字，内容迭代轮次，默认: 1                              |
-| model               | 字符串，强制使用的检索模型，默认: "default"              |
+| 参数（*为必传参数） | 描述                    |
+| :------------------ | ----------------------- |
+| ***query**          | 字符串，搜索用的字符串  |
+| k                   | 单词检索的数量，默认: 6 |
+| filter              | 对象，过滤条件          |
 
 
 
@@ -170,8 +168,7 @@ app/
     "metadata": {
         "id": 0, # int 数据唯一标识
         "splitter": "default", # str 分割器标识
-        "model": [], # EmbeddingModelManager -> List[str] 检索模型
-        "tag": [], # TagManager -> List[str] 标签管理
+        "tags": [], # TagManager -> List[str] 标签管理
         "related": False, # bool 是否被切分，用于匹配动态切分的标识
         "start_time": 0, # int 开始生效时间，时间戳
         "valid_time": 3600, # int 数据生效的时间，时间戳，-1为长效信息
@@ -221,8 +218,6 @@ app/
 | code | 数字，返回码         |
 | msg  | 字符串，返回附带信息 |
 
-#### 
-
 
 
 ### 知识库内容管理
@@ -249,10 +244,7 @@ app/
 ```python
 {
 	"page_content": "", # str 数据内容
-    "metadata": {
-        "tag": [], # List[str] 标签列表
-        "model": ["default"], # EmbeddingModelManager -> List[str] 知识检索器
-    }
+    "metadata": {}
 }
 ```
 
