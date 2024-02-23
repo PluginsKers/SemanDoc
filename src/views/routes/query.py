@@ -10,11 +10,24 @@ from src.controllers.query_controller import query_documents
 
 query_blueprint = Blueprint("query", __name__)
 
+
+def parse_int_or_default(val):
+    try:
+        # Attempt to convert the value to an integer
+        return int(val)
+    except ValueError:
+        # If the conversion fails (e.g., empty string), return a default value
+        if val == "":
+            return 6
+        raise ValidationError("Invalid value for integer.")
+
+
 # Define argument validation rules
 query_args = {
     "query": fields.Str(required=True, validate=lambda val: len(val) > 0),
-    "k": fields.Int(missing=10),  # Default value is 10
-    "filter": fields.Str(missing=None),  # Default is None
+    # Default value is 6
+    "k": fields.Function(deserialize=parse_int_or_default, missing=6, allow_none=True),
+    "filter": fields.Str(missing=None, allow_none=True),  # Default is None
 }
 
 
