@@ -1,4 +1,6 @@
 import os
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import time
 from typing import Optional, Tuple, List, Dict, Any
 import numpy as np
@@ -10,7 +12,7 @@ from src.modules.logging import logger
 from src.modules.document import Document
 
 
-def meta_filter(target: dict, metadata: dict) -> bool:
+def validate_metadata(target: dict, metadata: dict) -> bool:
     """
     Filter metadata based on a target and filter dictionary.
 
@@ -32,7 +34,7 @@ def meta_filter(target: dict, metadata: dict) -> bool:
                 return False
 
         elif isinstance(value, dict):
-            if not meta_filter(target_value, value):
+            if not validate_metadata(target_value, value):
                 return False
 
         elif target_value != value:
@@ -41,64 +43,68 @@ def meta_filter(target: dict, metadata: dict) -> bool:
     return True
 
 
-class DocStore:
-    def __init__(
-        self,
-        index_dir_path: str,
-        embedding_model_name_or_path: str
-    ):
+class DocumentStore:
+    """
+    Manages a document store for efficient retrieval based on document content and metadata.
+    """
+
+    def __init__(self, index_path: str, embedding_model_name: str):
         """
-        Initialize the DocStore with the specified index directory and
-        embedding model.
+        Initializes the document store with the specified index path and embedding model.
 
         Args:
-        - index_dir_path (str): Path to the directory containing the index.
-        - embedding_model_name_or_path (str): Name or path of the embedding
-        model.
+            index_path (str): Path to the directory where the FAISS index will be stored.
+            embedding_model_name (str): Name of the Hugging Face model to use for text embeddings.
         """
-        self.embedding_model_name_or_path = embedding_model_name_or_path
-        self.embedding_model_kwargs = {'device': 'cpu'}
-        self.embedding_encode_kwargs = {'normalize_embeddings': True}
+        self.index_path = index_path
         self.embedding = HuggingFaceBgeEmbeddings(
-            model_name=self.embedding_model_name_or_path,
-            model_kwargs=self.embedding_model_kwargs,
-            encode_kwargs=self.embedding_encode_kwargs,
-            query_instruction="Generate representation for this sentence for retrieval:"
+            model_name=embedding_model_name,
+            model_kwargs={"device": "cpu"},
+            encode_kwargs={"normalize_embeddings": True},
+            query_instruction="Generate representation for this sentence for retrieval:",
         )
+        self.index: Optional[FAISS] = self._load_or_create_index()
 
-        self.index_dir_path = index_dir_path
-        self.index: Optional[FAISS] = self.get_faiss_index(self.index_dir_path)
-
-    def get_faiss_index(self, index_dir_path: str) -> FAISS:
+    async def save_index(self):
         """
-        Get or create a FAISS index.
+        Saves the FAISS index to the specified directory.
+        """
+        loop = asyncio.get_event_loop()
+        executor = ThreadPoolExecutor()
+        index_path = os.path.join(self.index_path, "store")
+        try:
+            await loop.run_in_executor(executor, self.index.save_local, index_path)
+            logger.info("Index successfully saved to %s", index_path)
+        except Exception as e:
+            logger.error("Error saving index: %s", e)
 
-        Args:
-        - index_dir_path (str): Path to the directory containing the index.
+    def _load_or_create_index(self) -> FAISS:
+        """
+        Loads an existing FAISS index from the index path or creates a new one if not found.
 
         Returns:
-        - FAISS: The FAISS index.
+            FAISS: The loaded or newly created FAISS index.
         """
-        index_path: str = os.path.join(index_dir_path, 'index.faiss')
-        if os.path.exists(index_path):
-            logger.info('Loaded: %s', index_path)
-            index = FAISS.load_local(index_path, self.embedding)
-        else:
-            logger.info('Local Database not found.')
+        index_path = os.path.join(self.index_path, "store")
+        if not os.path.exists(index_path):
+            logger.info("Local database not found, creating a new one.")
+            os.makedirs(self.index_path, exist_ok=True)
             index = FAISS.from_documents(
                 [
                     Document(
-                        page_content='I am a vector retrieval system, the brain of Xiaoning!',
-                        metadata={'ids': 0, 'tags': ['init_addition']},
+                        page_content="I am a vector retrieval system, the brain of Xiaoning!",
+                        metadata={"id": 0, "tags": ["__init__"]},
                     )
                 ],
-                self.embedding
+                self.embedding,
             )
-            index.save_local(index_path)
-            logger.info('Saved to the database.')
+            asyncio.run(self.save_index())
+        else:
+            logger.info("Loaded index from %s", index_path)
+            index = FAISS.load_local(index_path, self.embedding)
         return index
 
-    def get_next_ids(self) -> int:
+    def _get_next_ids(self) -> int:
         """
         Get the next available document ID.
 
@@ -106,13 +112,12 @@ class DocStore:
         - int: The next available document ID.
         """
         all_ids = [
-            int(doc.metadata['ids'])
-            for _id, doc in self.index.docstore._dict.items()
+            int(doc.metadata["ids"]) for _id, doc in self.index.docstore._dict.items()
         ]
         max_ids = max(all_ids) if all_ids else 0
         return max_ids + 1
 
-    def is_document_currently_valid(self, document: Document) -> bool:
+    def _is_document_currently_valid(self, document: Document) -> bool:
         """
         Check if a document is currently valid based on its metadata.
 
@@ -123,8 +128,8 @@ class DocStore:
         - bool: True if the document is currently valid, False otherwise.
         """
         current_time = time.time()
-        valid_time = document.metadata.get('valid_time')
-        start_time = document.metadata.get('start_time')
+        valid_time = document.metadata.get("valid_time")
+        start_time = document.metadata.get("start_time")
 
         if valid_time == -1:
             return True
@@ -139,31 +144,29 @@ class DocStore:
 
     async def add_documents(self, documents: List[Document]) -> List[Document]:
         """
-        Add a list of documents to the index.
+        Adds a list of documents to the document store.
 
         Args:
-        - documents (List[Document]): Documents to be added to the index.
+            documents (List[Document]): List of documents to add.
 
         Returns:
-        - List[Document]: Added documents.
+            List[Document]: The list of added documents.
         """
-        next_ids = self.get_next_ids()
-        added_list = []
+        next_id = self._get_next_ids()
+        added_documents = []
         for doc in documents:
-            doc.metadata['ids'] = int(next_ids)
-            next_ids += 1
+            doc.metadata["id"] = next_id
+            next_id += 1
+            added_documents.append(doc)
         try:
-            await self.index.aadd_documents(documents)
-            added_list = documents
-            self.index.save_local(self.index_dir_path)
+            await self.index.aadd_documents(added_documents)
+            await self.save_index()
         except Exception as e:
-            logger.error('Failed to add documents: %s', e)
-
-        return added_list
+            logger.error("Failed to add documents: %s", e)
+        return added_documents
 
     def remove_documents_by_id(
-        self,
-        target_id_list: Optional[List[str]]
+        self, target_id_list: Optional[List[str]]
     ) -> Tuple[int, int]:
         """
         Remove documents from the index based on their IDs.
@@ -197,16 +200,12 @@ class DocStore:
             del self.index.docstore._dict[d_id]
             del self.index.index_to_docstore_id[i_id]
         self.index.index_to_docstore_id = {
-            i: d_id
-            for i, d_id in enumerate(self.index.index_to_docstore_id.values())
+            i: d_id for i, d_id in enumerate(self.index.index_to_docstore_id.values())
         }
-        self.index.save_local(self.index_dir_path)
+        asyncio.run(self.save_index())
         return n_removed, n_total
 
-    def remove_documents_by_ids(
-        self,
-        target_ids: List[int]
-    ) -> Tuple[int, int]:
+    def remove_documents_by_ids(self, target_ids: List[int]) -> Tuple[int, int]:
         """
         Remove documents from the index based on their IDs.
 
@@ -222,16 +221,13 @@ class DocStore:
         id_to_remove = []
         for _id, doc in self.index.docstore._dict.items():
             to_remove = False
-            if doc.metadata['ids'] in target_ids:
+            if doc.metadata["ids"] in target_ids:
                 to_remove = True
             if to_remove:
                 id_to_remove.append(_id)
         return self.remove_documents_by_id(id_to_remove)
 
-    def remove_documents_by_tags(
-        self,
-        target_tags: List[str]
-    ) -> Tuple[int, int]:
+    def remove_documents_by_tags(self, target_tags: List[str]) -> Tuple[int, int]:
         """
         Remove documents from the index based on their tags.
 
@@ -247,7 +243,7 @@ class DocStore:
         id_to_remove = []
         for _id, doc in self.index.docstore._dict.items():
             to_remove = False
-            if doc.metadata['tags'] == target_tags:
+            if doc.metadata["tags"] == target_tags:
                 to_remove = True
             if to_remove:
                 id_to_remove.append(_id)
@@ -275,28 +271,16 @@ class DocStore:
         - List[Document]: List of retrieved documents.
         """
         docs_and_scores = await self.index.asimilarity_search_with_score(
-            query,
-            k=fetch_k,
-            fetch_k=fetch_k,
-            **kwargs
+            query, k=fetch_k, fetch_k=fetch_k, **kwargs
         )
 
-        docs = [
-            Document(doc.page_content, doc.metadata)
-            for doc, _ in docs_and_scores
-        ]
+        docs = [Document(doc.page_content, doc.metadata) for doc, _ in docs_and_scores]
 
         if metadata is not None:
             valid_docs = [
-                doc
-                for doc in docs
-                if meta_filter(doc.metadata, metadata)
+                doc for doc in docs if validate_metadata(doc.metadata, metadata)
             ]
         else:
-            valid_docs = [
-                doc
-                for doc in docs
-                if self.is_document_currently_valid(doc)
-            ]
+            valid_docs = [doc for doc in docs if self._is_document_currently_valid(doc)]
 
         return valid_docs[:k]

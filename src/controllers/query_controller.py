@@ -1,11 +1,9 @@
 from typing import Optional, List, Dict, Any
-from src.global_initializer import get_docstore
+from src import get_docstore
 
 
-async def search_documents(
-    query: str,
-    k: int = 5,
-    metadata: Optional[Dict[str, Any]] = None
+async def query_documents(
+    query: str, k: int = 5, metadata: Optional[Dict[str, Any]] = None
 ) -> List[Dict]:
     """
     Searches for documents based on the provided query.
@@ -20,14 +18,7 @@ async def search_documents(
         List[Dict]: A list of dictionaries representing the search results.
     """
     # Perform the document search using the global document store
-    search_result = await get_docstore().search(
-        query=query,
-        k=k,
-        metadata=metadata
-    )
+    search_result = await get_docstore().search(query=query, k=k, metadata=metadata)
 
     # Convert the search results to a list of dictionaries
-    return [
-        v.to_dict()
-        for v in search_result
-    ]
+    return [v.to_dict() for v in search_result]

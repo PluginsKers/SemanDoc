@@ -1,18 +1,16 @@
-from typing import List
-
 import time
-from typing import List, Optional, Dict, Any
+from typing import Optional
 
 
 class Metadata:
     def __init__(
         self,
         ids: Optional[int] = None,
-        splitter: str = 'default',
+        splitter: str = "default",
         valid_time: Optional[int] = None,
         start_time: Optional[int] = None,
         related: bool = False,
-        tags: list = None
+        tags: list = None,
     ):
         self.ids = ids
         self.splitter = splitter
@@ -23,12 +21,12 @@ class Metadata:
 
     def to_dict(self):
         return {
-            'ids': self.ids,
-            'splitter': self.splitter,
-            'valid_time': self.valid_time,
-            'related': self.related,
-            'start_time': self.start_time,
-            'tags': self.tags
+            "ids": self.ids,
+            "splitter": self.splitter,
+            "valid_time": self.valid_time,
+            "related": self.related,
+            "start_time": self.start_time,
+            "tags": self.tags,
         }
 
 
@@ -47,7 +45,4 @@ class Document:
         self.metadata = self.metadata.to_dict()
 
     def to_dict(self):
-        return {
-            'page_content': self.page_content,
-            'metadata': self.metadata
-        }
+        return {"page_content": self.page_content, "metadata": self.metadata}

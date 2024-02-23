@@ -1,5 +1,5 @@
 from typing import Optional
-from src.modules.docstore import DocStore
+from src.modules.document_store import DocumentStore
 from src.modules.logging import logger
 
 import os
@@ -10,7 +10,7 @@ load_dotenv()
 
 
 # Global variable to store the initialized database
-docstore: Optional[DocStore] = None
+docstore: Optional[DocumentStore] = None
 
 
 def initialize():
@@ -25,17 +25,17 @@ def initialize():
         index_path = os.getenv("INDEX_PATH")
         model_path = os.getenv("MODEL_PATH")
 
-        # Initialize the DocStore with the paths from the environment variables
-        docstore = DocStore(index_path, model_path)
+        # Initialize the DocumentStore with the paths from the environment variables
+        docstore = DocumentStore(index_path, model_path)
 
         logger.info("Knowledge base loaded!")
 
 
-def get_docstore() -> DocStore:
+def get_docstore() -> DocumentStore:
     """
-    Returns the initialized DocStore instance.
+    Returns the initialized DocumentStore instance.
 
     Returns:
-        DocStore: The initialized DocStore instance.
+        DocumentStore: The initialized DocumentStore instance.
     """
     return docstore
