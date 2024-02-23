@@ -48,15 +48,15 @@ class DocumentStore:
     Manages a document store for efficient retrieval based on document content and metadata.
     """
 
-    def __init__(self, index_path: str, embedding_model_name: str):
+    def __init__(self, index_dir: str, embedding_model_name: str):
         """
         Initializes the document store with the specified index path and embedding model.
 
         Args:
-            index_path (str): Path to the directory where the FAISS index will be stored.
+            index_dir (str): Path to the directory where the FAISS index will be stored.
             embedding_model_name (str): Name of the Hugging Face model to use for text embeddings.
         """
-        self.index_path = index_path
+        self.index_dir = index_dir
         self.embedding = HuggingFaceBgeEmbeddings(
             model_name=embedding_model_name,
             model_kwargs={"device": "cpu"},
@@ -69,12 +69,13 @@ class DocumentStore:
         """
         Saves the FAISS index to the specified directory.
         """
-        loop = asyncio.get_event_loop()
-        executor = ThreadPoolExecutor()
-        index_path = os.path.join(self.index_path, "store")
+        index_path = os.path.join(self.index_dir, "store")
         try:
-            await loop.run_in_executor(executor, self.index.save_local, index_path)
+            loop = asyncio.get_event_loop()
+            with ThreadPoolExecutor() as executor:
+                await loop.run_in_executor(executor, self.index.save_local, index_path)
             logger.info("Index successfully saved to %s", index_path)
+
         except Exception as e:
             logger.error("Error saving index: %s", e)
 
@@ -85,20 +86,19 @@ class DocumentStore:
         Returns:
             FAISS: The loaded or newly created FAISS index.
         """
-        index_path = os.path.join(self.index_path, "store")
+        index_path = os.path.join(self.index_dir, "store")
         if not os.path.exists(index_path):
             logger.info("Local database not found, creating a new one.")
-            os.makedirs(self.index_path, exist_ok=True)
+            os.makedirs(self.index_dir, exist_ok=True)
             index = FAISS.from_documents(
                 [
                     Document(
                         page_content="I am a vector retrieval system, the brain of Xiaoning!",
-                        metadata={"id": 0, "tags": ["__init__"]},
+                        metadata={"ids": 0, "tags": ["__init__"]},
                     )
                 ],
                 self.embedding,
             )
-            asyncio.run(self.save_index())
         else:
             logger.info("Loaded index from %s", index_path)
             index = FAISS.load_local(index_path, self.embedding)
@@ -155,7 +155,7 @@ class DocumentStore:
         next_id = self._get_next_ids()
         added_documents = []
         for doc in documents:
-            doc.metadata["id"] = next_id
+            doc.metadata["ids"] = next_id
             next_id += 1
             added_documents.append(doc)
         try:
@@ -274,13 +274,15 @@ class DocumentStore:
             query, k=fetch_k, fetch_k=fetch_k, **kwargs
         )
 
-        docs = [Document(doc.page_content, doc.metadata) for doc, _ in docs_and_scores]
+        docs = [Document(doc.page_content, doc.metadata)
+                for doc, _ in docs_and_scores]
 
         if metadata is not None:
             valid_docs = [
                 doc for doc in docs if validate_metadata(doc.metadata, metadata)
             ]
         else:
-            valid_docs = [doc for doc in docs if self._is_document_currently_valid(doc)]
+            valid_docs = [
+                doc for doc in docs if self._is_document_currently_valid(doc)]
 
         return valid_docs[:k]
