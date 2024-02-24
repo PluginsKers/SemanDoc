@@ -1,25 +1,28 @@
-import json
-from flask import Blueprint, request
-
+from flask import Blueprint, request, jsonify
+from webargs import fields, flaskparser
 from src.modules.response import Response
 from src.controllers.wecom_controller import handle_wecom_message
 
 wecom_blueprint = Blueprint("wecom", __name__)
 
+# 定义期望接收的参数及其类型
+wecom_args = {
+    "msg_signature": fields.Str(required=True),
+    "timestamp": fields.Str(required=True),
+    "nonce": fields.Str(required=True),
+}
+
 
 @wecom_blueprint.route("/", methods=["POST"])
-def wecom_application_message():
-    try:
-        # 接收请求中的数据
-        data = request.get_json(force=True)
+def wecom_route():
+    # 使用webargs解析查询参数
+    parsed_args = flaskparser.parser.parse(
+        wecom_args, request, location="querystring")
 
-        # 假设handle_wechat_message是一个处理企业微信消息的函数
-        # 它应该接受一个字典类型的参数，并返回处理结果
-        response = handle_wecom_message(data)
+    raw_xml_data = request.data.decode('utf-8')
 
-        # 返回处理结果
-        return Response("Message processed successfully.", 200, data=response)
-    except ValueError as error:
-        return Response(f"Invalid request data: {error}", 400)
-    except Exception as error:
-        return Response(f"Internal server error: {error}", 500)
+    # 调用处理消息的函数，传入解析的参数和XML数据
+    handle_wecom_message(raw_xml_data, **parsed_args)
+
+    # 假设handle_wecom_message函数返回的是处理结果
+    return Response("success", 200)
