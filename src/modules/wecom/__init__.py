@@ -26,9 +26,10 @@ class WeComApplication:
         self.token_expiration = 0
         logger.info(
             "WeComApplication initialized for agent_id: %s", self.agent_id)
-        self.update_access_token()
 
     def send_message_async(self, user_id: str, content: str):
+        self.update_access_token()
+
         def send_message():
             send_url = f"{self.API_URL}message/send?access_token={self.access_token}"
             data = {
