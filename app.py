@@ -1,8 +1,14 @@
 from flask import Flask
 from flask_cors import CORS
 
+import os
+from dotenv import load_dotenv
+
 from src.views.api import api_blueprint
 from src import initialize
+
+# Load environment variables from the .env file
+load_dotenv()
 
 
 def create_app() -> Flask:
@@ -24,4 +30,5 @@ def create_app() -> Flask:
 if __name__ == "__main__":
     initialize()
     runtime = create_app()
-    runtime.run("0.0.0.0", 7002, debug=True)
+    runtime.run("0.0.0.0", 7002, debug=True if os.getenv(
+        "DEBUG") == 1 else False)
