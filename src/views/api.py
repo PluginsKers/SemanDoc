@@ -1,8 +1,8 @@
 from flask import Blueprint
 
-from src.views.routes.edit import editor_blueprint
-from src.views.routes.query import query_blueprint
-from src.views.routes.wecom import wecom_blueprint
+from src.views.routes.edit_routes import editor_blueprint
+from src.views.routes.query_routes import query_blueprint
+from src.views.routes.wecom_routes import wecom_blueprint
 
 api_blueprint = Blueprint("api", __name__)
 
