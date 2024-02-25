@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 import threading
 from src.modules.logging import logger
-from src.modules.utils.wxcrypt.WXBizMsgCrypt3 import WXBizMsgCrypt
+from src.utils.wxcrypt.WXBizMsgCrypt3 import WXBizMsgCrypt
 
 
 class DuplicateMessageIDError(Exception):

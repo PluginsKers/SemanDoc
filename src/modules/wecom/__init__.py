@@ -5,7 +5,7 @@ import requests
 import threading
 
 from src.modules.logging import logger
-from src.modules.utils.wxcrypt.WXBizMsgCrypt3 import WXBizMsgCrypt
+from src.utils.wxcrypt.WXBizMsgCrypt3 import WXBizMsgCrypt
 
 
 class WeComApplication:
