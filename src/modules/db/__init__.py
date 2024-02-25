@@ -17,7 +17,7 @@ class Database:
         try:
             conn = sqlite3.connect(db_file)
             logger.info(
-                "SQLite database successfully created/connected, version:", sqlite3.version)
+                "SQLite database successfully created/connected, version: %s", sqlite3.version)
         except Error as e:
             raise Exception(f"Failed to connect to database: {e}")
         return conn
@@ -39,7 +39,7 @@ class Database:
             self.conn.commit()
             return cur.lastrowid
         except Error as e:
-            logger.error(f"SQL execution error: {e}")
+            logger.error("SQL execution error:  %s", e)
             return None
 
     def execute_read_query(self, query, args=()):
@@ -50,7 +50,7 @@ class Database:
             result = cur.fetchall()
             return result
         except Error as e:
-            logger.error(f"SQL read error: {e}")
+            logger.error("SQL read error: %s", e)
             return None
 
     def check_and_initialize_tables(self):
