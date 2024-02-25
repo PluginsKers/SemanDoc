@@ -5,7 +5,7 @@ from src.modules.logging import logger
 
 
 class Database:
-    def __init__(self, db_file):
+    def __init__(self, db_file: str):
         """Initialize with the database file, but don't create a connection yet."""
         self.db_file = db_file
         # Use threading.local to store connection per thread
@@ -36,7 +36,7 @@ class Database:
             self.thread_conn.conn.close()
             del self.thread_conn.conn  # Remove connection from thread-local storage
 
-    def execute_query(self, query, args=()):
+    def execute_query(self, query: str, args=()):
         """Execute an SQL query using the thread-local connection."""
         conn = self.get_connection()  # Get the thread-local connection
         try:
@@ -48,7 +48,7 @@ class Database:
             logger.error("SQL execution error: %s", e)
             return None
 
-    def execute_read_query(self, query, args=()):
+    def execute_read_query(self, query: str, args=()) -> list:
         """Execute a query to read data using the thread-local connection."""
         conn = self.get_connection()  # Get the thread-local connection
         try:
@@ -72,7 +72,7 @@ class Database:
         document_table_sql = """CREATE TABLE IF NOT EXISTS documents (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 content TEXT NOT NULL,
-                                source_info TEXT NOT NULL);"""
+                                metadata TEXT NOT NULL);"""
 
         self.execute_query(user_table_sql)
         self.execute_query(document_table_sql)
