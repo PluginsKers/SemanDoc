@@ -1,5 +1,6 @@
 import sqlite3
 from sqlite3 import Error
+from src.modules.logging import logger
 
 
 class Database:
@@ -15,7 +16,7 @@ class Database:
         conn = None
         try:
             conn = sqlite3.connect(db_file)
-            print(
+            logger.info(
                 "SQLite database successfully created/connected, version:", sqlite3.version)
         except Error as e:
             raise Exception(f"Failed to connect to database: {e}")
@@ -38,7 +39,7 @@ class Database:
             self.conn.commit()
             return cur.lastrowid
         except Error as e:
-            print(f"SQL execution error: {e}")
+            logger.error(f"SQL execution error: {e}")
             return None
 
     def execute_read_query(self, query, args=()):
@@ -49,7 +50,7 @@ class Database:
             result = cur.fetchall()
             return result
         except Error as e:
-            print(f"SQL read error: {e}")
+            logger.error(f"SQL read error: {e}")
             return None
 
     def check_and_initialize_tables(self):
