@@ -1,4 +1,6 @@
 from typing import Optional
+
+from src.modules.db import Database
 from src.modules.document_store import DocumentStore
 from src.modules.wecom import WeComApplication
 from src.modules.logging import logger
@@ -14,6 +16,9 @@ docstore: Optional[DocumentStore] = None
 
 # Global variable to store the initialized WeCom application instance. Initially set to None.
 wecom_app: Optional[WeComApplication] = None
+
+# Global variable to store the initialized database instance. Initially set to None.
+db: Optional[Database] = None
 
 
 def initialize():
@@ -42,6 +47,27 @@ def initialize():
             os.getenv("ENCODING_AES_KEY"), os.getenv("TOKEN"))
 
         logger.info("WeCom application initialized!")
+
+    global db
+    if not db:
+        logger.info("Initializing Database...")
+
+        # Initialize the Database with the path from environment variables
+        db = Database(
+            os.getenv("DB_PATH"))
+
+        logger.info("Database initialized!")
+
+
+def get_db() -> Database:
+    """
+    Returns the initialized Database instance.
+
+    Returns:
+        Database: The initialized Database instance.
+    """
+    assert db is not None, "Database must be initialized before accessing it."
+    return db
 
 
 def get_wecom_app() -> WeComApplication:
