@@ -32,7 +32,7 @@ def token_required(f):
 
 @api_blueprint.before_request
 def before_request_func():
-    if request.path.startswith("/api/auth/login"):
+    if request.path.startswith("/api/auth/login") or request.path.startswith("/api/wecom"):
         return None
     return token_required(lambda: None)()
 
