@@ -1,3 +1,5 @@
+import threading
+
 from flask import Blueprint, request, jsonify
 from webargs import fields, flaskparser
 from src.modules.response import Response
@@ -22,7 +24,8 @@ def wecom_route():
     raw_xml_data = request.data.decode('utf-8')
 
     # 调用处理消息的函数，传入解析的参数和XML数据
-    handle_wecom_message(raw_xml_data, **parsed_args)
+    threading.Thread(target=handle_wecom_message, args=(
+        raw_xml_data,), kwargs=parsed_args).start()
 
     # 假设handle_wecom_message函数返回的是处理结果
     return Response("success", 200)
