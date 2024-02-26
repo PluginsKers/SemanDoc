@@ -1,4 +1,4 @@
-from src.modules.db.user import User
+from src.modules.database.user import User
 from src.utils.security import check_password, generate_jwt_token
 
 

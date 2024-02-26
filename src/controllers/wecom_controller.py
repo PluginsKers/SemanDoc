@@ -1,5 +1,3 @@
-# src/controllers/wecom_controller.py
-
 import xml.etree.ElementTree as ET
 from src.modules.wecom.message import WecomMessage
 

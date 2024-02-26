@@ -1,4 +1,3 @@
-# src/modules/wecom/application.py
 import time
 import requests
 

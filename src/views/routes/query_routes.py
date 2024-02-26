@@ -1,7 +1,6 @@
 import json
 from flask import Blueprint
 
-# Use webargs for argument validation
 from webargs import fields, ValidationError
 from webargs.flaskparser import use_kwargs
 

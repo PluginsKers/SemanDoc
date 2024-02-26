@@ -1,7 +1,7 @@
 from typing import Optional
 
-from src.modules.db import Database
-from src.modules.document_store import DocumentStore
+from src.modules.database import Database
+from src.modules.document.vecstore import DocumentStore
 from src.modules.wecom import WeComApplication
 from src.modules.logging import logger
 
