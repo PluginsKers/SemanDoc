@@ -7,7 +7,6 @@ from src.modules.response import Response
 
 auth_blueprint = Blueprint('auth', __name__)
 
-# Existing login_args for /login
 login_args = {
     "username": fields.Str(required=True),
     "password": fields.Str(required=True)
@@ -24,7 +23,6 @@ def login(username, password):
         return Response("Invalid credentials", 401)
 
 
-# Define arguments for creating a user
 create_user_args = {
     "username": fields.Str(required=True),
     "password": fields.Str(required=True),

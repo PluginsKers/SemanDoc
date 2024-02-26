@@ -1,10 +1,31 @@
 import time
+from typing import Dict, List
 import requests
 
 import threading
 
+from collections import deque
+
 from src.modules.logging import logger
 from src.utils.wxcrypt.WXBizMsgCrypt3 import WXBizMsgCrypt
+
+
+class HistoryRecords:
+    def __init__(self, max_length=3):
+        self.records = deque(maxlen=max_length)
+
+    def add_record(self, question, answer):
+        self.records.append([question, answer])
+
+    def get_records(self) -> List[str]:
+        return list(self.records)
+
+    def get_raw_records(self) -> str:
+        raw = ""
+        for i, record in enumerate(self.records):
+            raw += f"> 用户：{record[0]}\n> 助手：{record[1]}\n"
+
+        return raw
 
 
 class WeComApplication:
@@ -15,6 +36,7 @@ class WeComApplication:
 
     def __init__(self, agent_id, corp_id, corp_secret, encoding_aes_key, stoken):
         self.cooldowns = {}
+        self.historys: Dict[str, HistoryRecords] = {}
 
         self.agent_id = agent_id
         self.corp_id = corp_id
@@ -30,7 +52,11 @@ class WeComApplication:
         logger.info(
             "WeCom application initialized for agent_id: %s", self.agent_id)
 
-    def send_message_async(self, user_id: str, content: str):
+    def send_message_async(self, user_id: str, content: str, question: str):
+        # If the HistoryRecords object does not exist
+        if user_id not in self.historys:
+            self.historys[user_id] = HistoryRecords()
+
         self.set_cooldown(user_id, WeComApplication.COOLDOWN_TIME)
         self.update_access_token()
 
@@ -52,11 +78,12 @@ class WeComApplication:
                     logger.error("Failed to send message: %s",
                                  result.get("errmsg"))
 
+                self.historys[user_id].add_record(question, content)
+
                 self.cancel_cooldown(user_id)
             except Exception as e:
                 logger.exception("Exception occurred while sending message.")
 
-        # 使用线程来异步发送消息
         thread = threading.Thread(target=send_message)
         thread.start()
 
@@ -73,7 +100,7 @@ class WeComApplication:
                 data = response.json()
                 if data.get('errcode') == 0:
                     self.access_token = data['access_token']
-                    # 设置过期时间提前5分钟刷新
+                    # Set expiration time to refresh 5 minutes in advance
                     self.token_expiration = time.time() + \
                         data['expires_in'] - 300
                     logger.info("WeCom access token updated successfully for agent_id: %s. Token expires in %d seconds.",

@@ -1,7 +1,10 @@
 from typing import Optional
 
+import torch
+
 from src.modules.database import Database
 from src.modules.document.vecstore import DocumentStore
+from src.modules.llm.llm_model import LLMModel
 from src.modules.wecom import WeComApplication
 from src.modules.logging import logger
 
@@ -17,8 +20,11 @@ docstore: Optional[DocumentStore] = None
 # Global variable to store the initialized WeCom application instance. Initially set to None.
 wecom_app: Optional[WeComApplication] = None
 
-# Global variable to store the initialized database instance. Initially set to None.
+# Global variable to store the language large model instance. Initially set to None.
 db: Optional[Database] = None
+
+# desc
+llm: Optional[LLMModel] = None
 
 
 def initialize():
@@ -26,6 +32,17 @@ def initialize():
     Initializes the global variables for document store and WeCom application if they are not already initialized.
     Utilizes environment variables for configuration paths and credentials.
     """
+    global llm
+    if not llm:
+        logger.info("Initializing llm model...")
+
+        # Initialize the LLM Model with paths from environment variables
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        llm = LLMModel(device,
+                       os.getenv("LLM_MODEL_PATH"))
+
+        logger.info("llm model initialized!")
+
     global docstore
     if not docstore:
         logger.info("Loading knowledge base...")
@@ -57,6 +74,16 @@ def initialize():
             os.getenv("DB_PATH"))
 
         logger.info("Database initialized!")
+
+
+def get_llm() -> LLMModel:
+    """
+    Returns the initialized LLMModel instance.
+
+    Returns:
+        LLMModel: The initialized LLMModel instance.
+    """
+    return llm
 
 
 def get_db() -> Database:

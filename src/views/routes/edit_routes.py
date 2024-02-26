@@ -12,10 +12,8 @@ from src.controllers.edit_controller import (
     delete_documents_by_tags,
 )
 
-# Create Blueprint
 editor_blueprint = Blueprint("editor", __name__)
 
-# Define request arguments with improved type checking and default values
 shared_args = {
     "comment": fields.Str(missing=None),
 }

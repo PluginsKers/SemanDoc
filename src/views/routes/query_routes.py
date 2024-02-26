@@ -21,7 +21,6 @@ def parse_int_or_default(val):
         raise ValidationError("Invalid value for integer.")
 
 
-# Define argument validation rules
 query_args = {
     "query": fields.Str(required=True, validate=lambda val: len(val) > 0),
     # Default value is 6
