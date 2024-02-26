@@ -17,5 +17,5 @@ def handle_wecom_message(xml_str: str, **kwargs):
 
     wecom_msg = WecomMessage(xml_str, **kwargs)
 
-    # app.send_message_async(wecom_msg.get_sender(), wecom_msg.get_content())
-    app.send_message_async(wecom_msg.get_sender(), "该功能暂未开放，敬请期待！")
+    if not app.is_on_cooldown(wecom_msg.get_sender()):
+        app.send_message_async(wecom_msg.get_sender(), wecom_msg.get_content())

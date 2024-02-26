@@ -12,7 +12,11 @@ class WeComApplication:
     API_URL = "https://qyapi.weixin.qq.com/cgi-bin/"
     TOKEN_URL = f"{API_URL}gettoken"
 
+    COOLDOWN_TIME = 30
+
     def __init__(self, agent_id, corp_id, corp_secret, encoding_aes_key, stoken):
+        self.cooldowns = {}
+
         self.agent_id = agent_id
         self.corp_id = corp_id
         self.corp_secret = corp_secret
@@ -28,6 +32,7 @@ class WeComApplication:
             "WeCom application initialized for agent_id: %s", self.agent_id)
 
     def send_message_async(self, user_id: str, content: str):
+        self.set_cooldown(user_id, WeComApplication.COOLDOWN_TIME)
         self.update_access_token()
 
         def send_message():
@@ -47,6 +52,8 @@ class WeComApplication:
                 if result.get("errcode") != 0:
                     logger.error("Failed to send message: %s",
                                  result.get("errmsg"))
+
+                self.cancel_cooldown(user_id)
             except Exception as e:
                 logger.exception("Exception occurred while sending message.")
 
@@ -81,3 +88,27 @@ class WeComApplication:
                 logger.exception(
                     "Exception occurred while updating WeCom access token for agent_id: %s.", self.agent_id)
                 raise e
+
+    def is_on_cooldown(self, user_id: str) -> bool:
+        """
+        Check if user_id is in a cooling state.
+        """
+        current_time = time.time()
+        if user_id in self.cooldowns and current_time < self.cooldowns[user_id]:
+            return True
+        return False
+
+    def cancel_cooldown(self, user_id: str):
+        """
+        Cancel the cooling status of the specified user.
+        """
+        if user_id in self.cooldowns:
+            del self.cooldowns[user_id]
+
+    def set_cooldown(self, user_id: str, cooldown_seconds: int):
+        """
+        Set cooling time for specified users.
+        """
+        cooldown_end = time.time() + cooldown_seconds
+        # Update dict
+        self.cooldowns[user_id] = cooldown_end
