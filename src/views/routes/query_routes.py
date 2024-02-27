@@ -25,24 +25,16 @@ query_args = {
     "query": fields.Str(required=True, validate=lambda val: len(val) > 0),
     # Default value is 6
     "k": fields.Function(deserialize=parse_int_or_default, missing=6, allow_none=True),
-    "filter": fields.Str(missing=None, allow_none=True),  # Default is None
+    "filter": fields.Dict(missing=None, allow_none=True),  # Default is None
 }
 
 
-@query_blueprint.route("/", methods=["GET"])
-@use_kwargs(query_args, location="query")
-async def query_route(query: str, k: int, filter: str):
+@query_blueprint.route("/", methods=["POST"])
+@use_kwargs(query_args, location="json")
+async def query_route(query: str, k: int, filter: dict):
     try:
-        filter_dict = None
-        if filter:
-            filter_dict = json.loads(filter)
-            if not isinstance(filter_dict, dict):
-                raise ValidationError(
-                    "The 'filter' parameter must be a valid JSON object."
-                )
-
-        res = await query_documents(query, k, filter_dict)
-        return Response("Query successful.", 200, data=res)
+        results = await query_documents(query, k, filter)
+        return Response("Query successful.", 200, data=results)
 
     except ValidationError as error:
         return Response(f"Parameter error: {error.messages}", 400)

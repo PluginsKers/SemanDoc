@@ -30,7 +30,7 @@ create_user_args = {
 }
 
 
-@auth_blueprint.route('/create_test_user')
+@auth_blueprint.route('/create_test_user', methods=['GET'])
 @use_kwargs(create_user_args, location="query")
 def create_test_user(username, password, nickname):
     result, msg = create_user(username, password, nickname)
