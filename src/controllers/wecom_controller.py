@@ -16,8 +16,9 @@ async def handle_wecom_message(xml_str: str, **kwargs):
     wecom_msg = WecomMessage(xml_str, **kwargs)
     sender = wecom_msg.get_sender()
     question = wecom_msg.get_content()
+    mas_type = wecom_msg.get_msg_type()
 
-    if not app.is_on_cooldown(sender):
+    if not app.is_on_cooldown(sender) and mas_type == "text":
         app.set_cooldown(sender, app.COOLDOWN_TIME)
         llm = get_llm()
         docs = await get_docstore().search(query=question, k=5)

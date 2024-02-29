@@ -60,7 +60,7 @@ class WecomMessage:
         if ret != 0:
             logger.error(
                 f'Wecom message AESDecrypt error: {self.raw_xml_data}, {self.msg_signature}, {self.timestamp}, {self.nonce}')
-            raise InvalidXMLDataError('Wecom message AESDecrypt error')
+            raise InvalidXMLDataError('Wecom message AES decrypt error')
         return ET.fromstring(decrypt_msg_str)
 
     def _get_msg_id(self) -> str:
@@ -108,8 +108,32 @@ class WecomMessage:
             raise InvalidXMLDataError("Content not found")
         return content_element.text
 
+    def get_create_time(self) -> str:
+        create_time_element = self.xml_tree.find("CreateTime")
+        if create_time_element is None:
+            raise InvalidXMLDataError("CreateTime not found")
+        return create_time_element.text
+
+    def get_to_user(self) -> str:
+        to_user_element = self.xml_tree.find("ToUserName")
+        if to_user_element is None:
+            raise InvalidXMLDataError("ToUserName not found")
+        return to_user_element.text
+
+    def get_msg_type(self) -> str:
+        msg_type_element = self.xml_tree.find("MsgType")
+        if msg_type_element is None:
+            raise InvalidXMLDataError("MsgType not found")
+        return msg_type_element.text
+
     def get_sender(self) -> str:
         sender_element = self.xml_tree.find("FromUserName")
         if sender_element is None:
             raise InvalidXMLDataError("Sender not found")
         return sender_element.text
+
+    def get_agent_id(self) -> str:
+        agent_id_element = self.xml_tree.find("AgentID")
+        if agent_id_element is None:
+            raise InvalidXMLDataError("AgentID not found")
+        return agent_id_element.text
