@@ -32,7 +32,7 @@ add_args = {
 }
 
 
-@editor_blueprint.route("/remove", methods=["POST"])
+@editor_blueprint.route("/remove", methods=['POST', 'OPTIONS'])
 @use_kwargs(remove_args, location="json")
 def remove_document_route(target: list, type: str, comment: str):
     try:
@@ -65,7 +65,7 @@ def remove_document_route(target: list, type: str, comment: str):
         return Response(f"Database operation failed: {error}", 400)
 
 
-@editor_blueprint.route("/add", methods=["POST"])
+@editor_blueprint.route("/add", methods=['POST', 'OPTIONS'])
 @use_kwargs(add_args, location="json")
 async def add_document_route(data: str, metadata: dict, comment: str, preprocess: bool):
     try:

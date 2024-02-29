@@ -14,7 +14,7 @@ wecom_args = {
 }
 
 
-@wecom_blueprint.route("/", methods=["POST"])
+@wecom_blueprint.route("/", methods=['POST', 'OPTIONS'])
 def wecom_route():
     parsed_args = flaskparser.parser.parse(
         wecom_args, request, location="querystring")

@@ -21,7 +21,7 @@ def create_app() -> Flask:
     # 允许 CORS
     # CORS(app, resources={r"/api/*": {"origins": "http://your_frontend_domain.com"}})
     # 或者使用通配符允许所有源访问（不推荐在生产环境中使用）
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    CORS(app, resources={r"/*": {"origins": "*"}})
 
     return app
 
