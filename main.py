@@ -29,5 +29,4 @@ def create_app() -> Flask:
 if __name__ == "__main__":
     initialize()
     runtime = create_app()
-    runtime.run("0.0.0.0", 7002, debug=bool(os.getenv(
-        "DEBUG")))
+    runtime.run("0.0.0.0", 7002, debug=False)

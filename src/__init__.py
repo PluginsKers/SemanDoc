@@ -41,7 +41,7 @@ def initialize():
         llm = LLMModel(device,
                        os.getenv("LLM_MODEL_PATH"))
 
-        logger.info("llm model initialized!")
+        logger.info("llm model initialized on device %s", device)
 
     global docstore
     if not docstore:

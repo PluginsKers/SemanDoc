@@ -3,8 +3,6 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 import asyncio
 
-from src.modules.document import Document
-
 from .prompt_manager import PromptManager
 
 
@@ -24,7 +22,6 @@ class LLMModel(PromptManager):
         return response, history
 
     def generate_sync(self, prompt, history=[]):
-        with torch.no_grad():
-            response, history = self.model.chat(
-                self.tokenizer, prompt, history=history)
+        response, history = self.model.chat(
+            self.tokenizer, prompt, history=history)
         return response
