@@ -25,7 +25,7 @@ remove_args = {
 }
 
 add_args = {
-    "data": fields.Str(required=True),
+    "data": fields.Str(required=True, validate=lambda val: len(val) > 5),
     "metadata": fields.Dict(required=True),
     "preprocess": fields.Bool(missing=False),
     **shared_args,

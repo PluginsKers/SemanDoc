@@ -37,7 +37,7 @@ class Response(_Response):
 
         super().__init__(
             json.dumps(response, ensure_ascii=False),
-            200,
+            response['code'],
             headers,
             content_type,
             **kwargs
