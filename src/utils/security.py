@@ -1,8 +1,10 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
+import secrets
 from datetime import datetime, timedelta
 
-SECRET_KEY = "YOUR_SECRET_KEY"
+# Generates a 64 byte (512 bit) URL-safe secret key
+SECRET_KEY = secrets.token_urlsafe(64)
 
 
 def encrypt_password(password: str):
@@ -15,7 +17,7 @@ def check_password(hash: str, password: str):
 
 def generate_jwt_token(username: str):
     payload = {
-        "exp": datetime.utcnow() + timedelta(days=1),  # Token expires in 1 day
+        "exp": datetime.utcnow() + timedelta(hours=6),  # Token expires in 6 hours
         "iat": datetime.utcnow(),
         "sub": username,
     }
