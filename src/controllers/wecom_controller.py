@@ -4,6 +4,16 @@ from src.modules.wecom.message import WecomMessage
 from src import get_wecom_app, get_llm, get_docstore
 
 
+def get_msg_info(xml_str: str, **kwargs):
+
+    wecom_msg = WecomMessage(xml_str, **kwargs)
+    sender = wecom_msg.get_sender()
+    question = wecom_msg.get_content()
+    msg_type = wecom_msg.get_msg_type()
+
+    return sender, question, msg_type
+
+
 async def handle_wecom_message(xml_str: str, **kwargs):
     app = get_wecom_app()
     xml_data = ET.fromstring(xml_str)
@@ -13,12 +23,9 @@ async def handle_wecom_message(xml_str: str, **kwargs):
         'msg_crypt': app.wxcpt
     })
 
-    wecom_msg = WecomMessage(xml_str, **kwargs)
-    sender = wecom_msg.get_sender()
-    question = wecom_msg.get_content()
-    mas_type = wecom_msg.get_msg_type()
+    sender, question, msg_type = get_msg_info(xml_str, **kwargs)
 
-    if not app.is_on_cooldown(sender) and mas_type == "text":
+    if not app.is_on_cooldown(sender) and msg_type == "text":
         app.set_cooldown(sender, app.COOLDOWN_TIME)
         llm = get_llm()
         docs = await get_docstore().search(query=question, k=5)
