@@ -71,7 +71,8 @@ async def add_document_route(data: str, metadata: dict, comment: str, preprocess
     try:
         if preprocess:
             data = processor.replace_char_by_list(
-                data, [(",", "，"), (": ", "："), ("!", "！"), ("?", "？")]
+                data, [(",", "，"), (": ", "："), ("!", "！"),
+                       ("?", "？"), ("\n", " ")]
             )
 
         doc_obj = {"page_content": data, "metadata": metadata}
