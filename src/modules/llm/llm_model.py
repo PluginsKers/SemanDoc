@@ -1,6 +1,5 @@
 from typing import List
 from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
 import asyncio
 
 from .prompt_manager import PromptManager
@@ -21,7 +20,7 @@ class LLMModel(PromptManager):
         response, history = await loop.run_in_executor(None, self.generate_sync, prompt, history)
         return response, history
 
-    def generate_sync(self, prompt, history=[]):
+    def generate_sync(self, prompt, history=[]) -> str:
         response, history = self.model.chat(
             self.tokenizer, prompt, history=history)
         return response

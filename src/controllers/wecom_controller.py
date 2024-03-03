@@ -1,4 +1,5 @@
 import xml.etree.ElementTree as ET
+
 from src.modules.wecom.message import WecomMessage
 
 from src import get_wecom_app, get_llm, get_docstore
@@ -15,35 +16,42 @@ def get_msg_info(xml_str: str, **kwargs):
 
 
 async def handle_wecom_message(xml_str: str, **kwargs):
-    app = get_wecom_app()
-    xml_data = ET.fromstring(xml_str)
+    try:
 
-    kwargs.update({
-        **kwargs,
-        'msg_crypt': app.wxcpt
-    })
+        app = get_wecom_app()
 
-    sender, question, msg_type = get_msg_info(xml_str, **kwargs)
+        kwargs.update({
+            **kwargs,
+            'msg_crypt': app.wxcpt
+        })
 
-    if not app.is_on_cooldown(sender) and msg_type == "text":
-        app.set_cooldown(sender, app.COOLDOWN_TIME)
-        llm = get_llm()
-        docs = await get_docstore().search(query=question, k=5)
+        sender, question, msg_type = get_msg_info(xml_str, **kwargs)
 
-        standardized_docs = "- " + \
-            "\n- ".join(doc.page_content for doc in docs)
+        if not app.is_on_cooldown(sender) and msg_type == "text":
+            app.set_cooldown(sender, app.COOLDOWN_TIME)
+            llm = get_llm()
+            docs = await get_docstore().search(query=question, k=5)
 
-        records = app.historys.get(sender)
+            standardized_docs = "- " + \
+                "\n- ".join(doc.page_content for doc in docs)
 
-        history = [] if not records else records.get_raw_records()
-        if history:
-            summary = llm.get_summarize(history)
-            reminder = llm.generate_sync(summary)
-            history = [{"role": "user", "content": "总结一下上面我们聊了什么？"},
-                       {"role": "assistant", "metadata": "", "content": reminder}]
+            records = app.historys.get(sender)
 
-        optimization = llm.get_optimize(standardized_docs, question)
+            history = [] if not records else records.get_raw_records()
+            if history:
+                summary = llm.get_summarize(history)
+                reminder = llm.generate_sync(summary)
+                history = [{"role": "user", "content": "总结一下上面我们聊了什么？"},
+                           {"role": "assistant", "metadata": "", "content": reminder}]
 
-        response = llm.generate_sync(optimization, history)
+            optimization = llm.get_optimize(standardized_docs, question)
 
-        app.send_message_async(sender, response, question)
+            response = llm.generate_sync(optimization, history)
+
+            app.send_message_async(sender, response, question)
+    except Exception as e:
+        # Log the exception here if needed
+        if sender:
+            # Ensure to send a generic error message if any issue occurs before sending the actual response
+            error_response = "处理信息时出现问题，请稍后重试。"
+            app.send_message_async(sender, error_response)

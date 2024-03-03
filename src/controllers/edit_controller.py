@@ -1,29 +1,34 @@
 from typing import Union, Optional, List, Tuple
 from src.modules.document import Document
 
+from src.modules.logging import logger
+
 from src import get_docstore
-
-
-class DatabaseEditError(Exception):
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
+from src.modules.document.vecstore import VectorStoreEditError
 
 
 async def add_document(
     data: dict, comment: Optional[str] = None
 ) -> Union[Tuple[List[Document]], str]:
     if comment:
-        print(comment)
+        logger.info(comment)  # Using logging instead of print
 
-    metadata = data["metadata"]
-    add_result = await get_docstore().add_documents(
-        [Document(page_content=data["page_content"], metadata=metadata)]
-    )
-    if len(add_result) <= 0:
-        raise DatabaseEditError("Failed to add document to the database.")
+    try:
+        metadata = data.get("metadata")
+        if not metadata or "page_content" not in data:
+            raise ValueError("Invalid data provided for document addition.")
 
-    return tuple([add_result])
+        add_result = await get_docstore().add_documents(
+            [Document(page_content=data["page_content"], metadata=metadata)]
+        )
+        if len(add_result) <= 0:
+            raise VectorStoreEditError(
+                "Failed to add document to the database.")
+
+        return tuple([add_result])
+    except Exception as e:
+        logger.error("An error occurred while adding a document: %s", str(e))
+        raise  # Rethrowing the exception after logging
 
 
 def delete_documents_by_ids(

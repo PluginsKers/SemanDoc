@@ -12,6 +12,12 @@ from src.modules.logging import logger
 from src.modules.document import Document
 
 
+class VectorStoreEditError(Exception):
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+
 def validate_metadata(target: dict, metadata: dict) -> bool:
     """
     Filter metadata based on a target and filter dictionary.
