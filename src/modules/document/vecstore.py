@@ -18,7 +18,7 @@ class VectorStoreEditError(Exception):
         super().__init__(self.message)
 
 
-def validate_metadata(target: dict, metadata: dict) -> bool:
+def filter_by_metadata(target: dict, metadata: dict) -> bool:
     """
     Filter metadata based on a target and filter dictionary.
 
@@ -40,7 +40,7 @@ def validate_metadata(target: dict, metadata: dict) -> bool:
                 return False
 
         elif isinstance(value, dict):
-            if not validate_metadata(target_value, value):
+            if not filter_by_metadata(target_value, value):
                 return False
 
         elif target_value != value:
@@ -49,7 +49,7 @@ def validate_metadata(target: dict, metadata: dict) -> bool:
     return True
 
 
-class DocumentStore:
+class VectorStore:
     """
     Manages a document store for efficient retrieval based on document content and metadata.
     """
@@ -255,6 +255,36 @@ class DocumentStore:
                 id_to_remove.append(_id)
         return self.remove_documents_by_id(id_to_remove)
 
+    async def rebuild_index(self):
+        """
+        Rebuilds the FAISS index from the current documents in the document store,
+        optionally performing optimizations such as deduplication.
+        """
+        valid_documents = []
+        seen_contents = set()
+
+        # Collect valid and unique documents
+        for doc_id, document in self.index.docstore._dict.items():
+            if self._is_document_currently_valid(document):
+                # Optional: Deduplication based on content
+                content_hash = hash(document.page_content)
+                if content_hash not in seen_contents:
+                    valid_documents.append(document)
+                    seen_contents.add(content_hash)
+
+        logger.info(
+            f"Rebuilding index with {len(valid_documents)} valid documents.")
+
+        # Create a new index with collected documents
+        new_index = FAISS.from_documents(valid_documents, self.embedding)
+
+        # Replace the old index with the new one
+        self.index = new_index
+
+        # Save the rebuilt index
+        await self.save_index()
+        logger.info("Index successfully rebuilt and saved.")
+
     async def search(
         self,
         query: str,
@@ -285,7 +315,7 @@ class DocumentStore:
 
         if metadata is not None:
             valid_docs = [
-                doc for doc in docs if validate_metadata(doc.metadata, metadata)
+                doc for doc in docs if filter_by_metadata(doc.metadata, metadata)
             ]
         else:
             valid_docs = [

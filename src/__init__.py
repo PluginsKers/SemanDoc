@@ -3,7 +3,7 @@ from typing import Optional
 import torch
 
 from src.modules.database import Database
-from src.modules.document.vecstore import DocumentStore
+from src.modules.document.vecstore import VectorStore
 from src.modules.llm.llm_model import LLMModel
 from src.modules.wecom import WeComApplication
 from src.modules.logging import logger
@@ -15,13 +15,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Global variable to store the initialized database instance. Initially set to None.
-docstore: Optional[DocumentStore] = None
+docstore: Optional[VectorStore] = None
 
 # Global variable to store the initialized WeCom application instance. Initially set to None.
 wecom_app: Optional[WeComApplication] = None
 
 # Global variable to store the language large model instance. Initially set to None.
-db: Optional[Database] = None
+database: Optional[Database] = None
 
 # desc
 llm: Optional[LLMModel] = None
@@ -32,30 +32,19 @@ def initialize():
     Initializes the global variables for document store and WeCom application if they are not already initialized.
     Utilizes environment variables for configuration paths and credentials.
     """
-    global llm
-    if not llm:
-        logger.info("Initializing llm model...")
-
-        # Initialize the LLM Model with paths from environment variables
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        llm = LLMModel(device,
-                       os.getenv("LLM_MODEL_PATH"))
-
-        logger.info("llm model initialized on device %s", device)
-
     global docstore
     if not docstore:
-        logger.info("Loading knowledge base...")
+        logger.info("Loading Documents VectorStore...")
 
-        # Initialize the DocumentStore with paths from environment variables
-        docstore = DocumentStore(
+        # Initialize the VectorStore with paths from environment variables
+        docstore = VectorStore(
             os.getenv("INDEX_PATH"), os.getenv("MODEL_PATH"))
 
-        logger.info("Knowledge base loaded!")
+        logger.info("Documents VectorStore loaded!")
 
     global wecom_app
     if not wecom_app:
-        logger.info("Initializing WeCom application...")
+        logger.info("Initializing WeCom Application...")
 
         # Initialize the WeComApplication with credentials from environment variables
         wecom_app = WeComApplication(
@@ -63,17 +52,28 @@ def initialize():
                 "CORP_ID"), os.getenv("CORP_SECRET"),
             os.getenv("ENCODING_AES_KEY"), os.getenv("TOKEN"))
 
-        logger.info("WeCom application initialized!")
+        logger.info("WeCom Application initialized!")
 
-    global db
-    if not db:
+    global database
+    if not database:
         logger.info("Initializing Database...")
 
         # Initialize the Database with the path from environment variables
-        db = Database(
+        database = Database(
             os.getenv("DB_PATH"))
 
         logger.info("Database initialized!")
+
+    global llm
+    if not llm:
+        logger.info("Initializing LLM Model...")
+
+        # Initialize the LLM Model with paths from environment variables
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        llm = LLMModel(device,
+                       os.getenv("LLM_MODEL_PATH"))
+
+        logger.info("LLM Model initialized on device %s", device)
 
 
 def get_llm() -> LLMModel:
@@ -86,15 +86,15 @@ def get_llm() -> LLMModel:
     return llm
 
 
-def get_db() -> Database:
+def get_database() -> Database:
     """
     Returns the initialized Database instance.
 
     Returns:
         Database: The initialized Database instance.
     """
-    assert db is not None, "Database must be initialized before accessing it."
-    return db
+    assert database is not None, "Database must be initialized before accessing it."
+    return database
 
 
 def get_wecom_app() -> WeComApplication:
@@ -107,11 +107,11 @@ def get_wecom_app() -> WeComApplication:
     return wecom_app
 
 
-def get_docstore() -> DocumentStore:
+def get_docstore() -> VectorStore:
     """
-    Returns the initialized DocumentStore instance.
+    Returns the initialized VectorStore instance.
 
     Returns:
-        DocumentStore: The initialized DocumentStore instance.
+        VectorStore: The initialized VectorStore instance.
     """
     return docstore
