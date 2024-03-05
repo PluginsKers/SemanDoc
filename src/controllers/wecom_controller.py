@@ -20,7 +20,7 @@ async def process_wecom_message(wecom_message_xml: str, **kwargs) -> None:
         wecom_app = get_wecom_app()
 
         kwargs.update({
-            'message_crypt': wecom_app.wxcpt
+            'msg_crypt': wecom_app.wxcpt
         })
 
         sender_id, message_content, message_type = extract_message_info(
