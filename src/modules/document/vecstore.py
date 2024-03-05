@@ -2,7 +2,7 @@ from src.modules.document import Document
 import os
 import asyncio
 import threading
-import logging+
+import logging
 import time
 import numpy as np
 from typing import Optional, Tuple, List, Dict, Any
