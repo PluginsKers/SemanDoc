@@ -1,10 +1,11 @@
+from src.modules.document.vecstore import VectorStoreEditError
+from src import get_docstore
 from typing import Union, Optional, List, Tuple
 from src.modules.document import Document
 
-from src.modules.logging import logger
 
-from src import get_docstore
-from src.modules.document.vecstore import VectorStoreEditError
+import logging
+logger = logging.getLogger(__name__)
 
 
 async def add_document(

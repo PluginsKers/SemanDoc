@@ -1,51 +1,59 @@
-from src.modules.logging import logger
+import logging
+from src import get_wecom_app, get_llm, get_docstore, get_reranker
+from src.modules.wecom import HistoryRecords
 from src.modules.wecom.message import WecomMessage
-from src import get_wecom_app, get_llm, get_docstore
+
+logger = logging.getLogger(__name__)
 
 
-def get_msg_info(xml_str: str, **kwargs):
-    wecom_msg = WecomMessage(xml_str, **kwargs)
-    sender = wecom_msg.get_sender()
-    question = wecom_msg.get_content()
-    msg_type = wecom_msg.get_msg_type()
-    return sender, question, msg_type
+def extract_message_info(wecom_message_xml: str, **kwargs):
+    wecom_message = WecomMessage(wecom_message_xml, **kwargs)
+    sender_id = wecom_message.get_from_user()
+    message_content = wecom_message.get_content()
+    message_type = wecom_message.get_msg_type()
+    return sender_id, message_content, message_type
 
 
-async def handle_wecom_message(xml_str: str, **kwargs):
-    sender = None  # Define sender initially to ensure it's available in the scope for error handling
+async def process_wecom_message(wecom_message_xml: str, **kwargs) -> None:
+    sender_id = None  # Initial definition to ensure scope availability for error handling
     try:
-        app = get_wecom_app()
+        wecom_app = get_wecom_app()
 
         kwargs.update({
-            'msg_crypt': app.wxcpt
+            'message_crypt': wecom_app.wxcpt
         })
 
-        sender, question, msg_type = get_msg_info(xml_str, **kwargs)
+        sender_id, message_content, message_type = extract_message_info(
+            wecom_message_xml, **kwargs)
 
-        if not app.is_on_cooldown(sender) and msg_type == "text":
-            app.set_cooldown(sender, app.COOLDOWN_TIME)
-            llm = get_llm()
-            docs = await get_docstore().search(query=question, k=5)
+        if not wecom_app.is_on_cooldown(sender_id) and message_type == "text":
+            wecom_app.set_cooldown(sender_id, wecom_app.COOLDOWN_TIME)
+            language_model = get_llm()
+            document_reranker = get_reranker()
+            initial_documents = await get_docstore().query(query=message_content, k=4)
+            reranked_documents = document_reranker.rerank_documents(
+                initial_documents, message_content)
+            document_texts = "- " + \
+                "\n- ".join(doc.page_content for doc in reranked_documents)
 
-            standardized_docs = "- " + \
-                "\n- ".join(doc.page_content for doc in docs)
-
-            records = app.historys.get(sender)
-            history = [] if not records else records.get_raw_records()
+            records = wecom_app.historys.get(sender_id)
+            history = records.get_raw_records() if records and isinstance(
+                records, HistoryRecords) else []
             if history:
-                summary = llm.prompt_manager.get_summarize(history)
-                reminder = llm.generate_sync(summary)
+                summary_prompt = language_model.prompt_manager.get_summarize(
+                    history)
+                summary = language_model.generate(summary_prompt)
                 history = [{"role": "user", "content": "总结一下上面我们聊了什么？"},
-                           {"role": "assistant", "metadata": "", "content": reminder}]
+                           {"role": "assistant", "metadata": "", "content": summary}]
 
-            optimization = llm.prompt_manager.get_optimize(
-                standardized_docs, question)
-            response = llm.generate_sync(optimization, history)
+            optimization_prompt = language_model.prompt_manager.get_optimize(
+                document_texts, message_content)
+            response = language_model.generate(optimization_prompt, history)
 
-            await app.send_message_async(sender, response, question)
+            await wecom_app.send_message_async(sender_id, response, message_content)
     except Exception as e:
+
         logger.exception(e)
-        if sender:  # Ensure sender is defined
+        if sender_id:
             error_response = "处理信息时出现问题，请稍后重试。"
-            # Use await for asynchronous call
-            await app.send_message_async(sender, error_response)
+            await wecom_app.send_message_async(sender_id, error_response)

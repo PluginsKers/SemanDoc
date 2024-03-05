@@ -1,7 +1,8 @@
 import json
+import logging
 from flask import Response as _Response
 
-from src.modules.logging import logger
+logger = logging.getLogger(__name__)
 
 
 class Response(_Response):

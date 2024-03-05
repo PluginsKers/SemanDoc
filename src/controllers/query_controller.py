@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict, Any
-from src import get_docstore
+from src import get_docstore, get_reranker
 
 
 async def query_documents(
@@ -18,7 +18,10 @@ async def query_documents(
         List[Dict]: A list of dictionaries representing the search results.
     """
     # Perform the document search using the global document store
-    query_result = await get_docstore().search(query=query, k=k, metadata=metadata)
+    initial_documents = await get_docstore().query(query=query, k=k, metadata=metadata)
+
+    reranker = get_reranker()
+    reranked_documents = reranker.rerank_documents(initial_documents, query)
 
     # Convert the search results to a list of dictionaries
-    return [v.to_dict() for v in query_result]
+    return [v.to_dict() for v in reranked_documents]

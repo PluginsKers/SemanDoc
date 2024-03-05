@@ -6,7 +6,7 @@ from .prompt_manager import PromptManager
 
 
 class LLMModel:
-    def __init__(self, device: str, model_name="THUDM/chatglm3-6b"):
+    def __init__(self, model_name: str = "THUDM/chatglm3-6b", device: str = "cpu"):
         self.device = device
         self.prompt_manager = PromptManager()
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -18,10 +18,10 @@ class LLMModel:
 
     async def generate_async(self, prompt, history=[]):
         loop = asyncio.get_event_loop()
-        response, history = await loop.run_in_executor(None, self.generate_sync, prompt, history)
+        response, history = await loop.run_in_executor(None, self.generate, prompt, history)
         return response, history
 
-    def generate_sync(self, prompt, history=[]) -> str:
+    def generate(self, prompt, history=[]) -> str:
         response, history = self.model.chat(
             self.tokenizer, prompt, history=history)
         return response

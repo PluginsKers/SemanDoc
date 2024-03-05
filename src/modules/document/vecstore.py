@@ -1,6 +1,8 @@
+from src.modules.document import Document
 import os
 import asyncio
 import threading
+import logging+
 import time
 import numpy as np
 from typing import Optional, Tuple, List, Dict, Any
@@ -9,8 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from langchain.vectorstores.faiss import FAISS
 from langchain.embeddings import HuggingFaceBgeEmbeddings
 
-from src.modules.logging import logger
-from src.modules.document import Document
+logger = logging.getLogger(__name__)
 
 
 class VectorStoreEditError(Exception):
@@ -300,7 +301,7 @@ class VectorStore:
         with ThreadPoolExecutor() as executor:
             await loop.run_in_executor(executor, do_rebuild)
 
-    async def search(
+    async def query(
         self,
         query: str,
         k: int = 5,
@@ -330,7 +331,7 @@ class VectorStore:
 
         if metadata is not None:
             valid_docs = [
-                doc for doc in docs if filter_by_metadata(doc.metadata, metadata)
+                doc for doc in docs if filter_by_metadata(doc.metadata, metadata) and self._is_document_currently_valid(doc)
             ]
         else:
             valid_docs = [

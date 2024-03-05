@@ -1,11 +1,14 @@
+import logging
 from flask import Flask
 from flask_cors import CORS
 
-import os
 from dotenv import load_dotenv
 
 from src.views.api import api_blueprint
 from src import initialize
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 # Load environment variables from the .env file
 load_dotenv()

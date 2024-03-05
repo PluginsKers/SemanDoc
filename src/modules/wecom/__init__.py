@@ -1,13 +1,14 @@
+from src.utils.wxcrypt.WXBizMsgCrypt3 import WXBizMsgCrypt
 import time
 from typing import Dict, List
+import logging
 import requests
-
 import threading
 
 from collections import deque
 
-from src.modules.logging import logger
-from src.utils.wxcrypt.WXBizMsgCrypt3 import WXBizMsgCrypt
+
+logger = logging.getLogger(__name__)
 
 
 class TokenUpdateError(Exception):

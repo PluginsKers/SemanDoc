@@ -1,7 +1,9 @@
 import sqlite3
+import logging
 from sqlite3 import Error
 import threading
-from src.modules.logging import logger
+
+logger = logging.getLogger(__name__)
 
 
 class Database:

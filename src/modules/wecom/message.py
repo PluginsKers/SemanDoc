@@ -1,8 +1,9 @@
 import xml.etree.ElementTree as ET
 import threading
-from src.modules.logging import logger
+import logging
 from src.utils.wxcrypt.WXBizMsgCrypt3 import WXBizMsgCrypt
 
+logger = logging.getLogger(__name__)
 
 class DuplicateMessageIDError(Exception):
     """Exception for duplicate message IDs."""
@@ -126,7 +127,7 @@ class WecomMessage:
             raise InvalidXMLDataError("MsgType not found")
         return msg_type_element.text
 
-    def get_sender(self) -> str:
+    def get_from_user(self) -> str:
         sender_element = self.xml_tree.find("FromUserName")
         if sender_element is None:
             raise InvalidXMLDataError("Sender not found")
