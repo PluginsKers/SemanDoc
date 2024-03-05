@@ -3,7 +3,7 @@ import threading
 from flask import Blueprint, request
 from webargs import fields, flaskparser
 from src.modules.response import Response
-from src.controllers.wecom_controller import handle_wecom_message
+from src.controllers.wecom_controller import process_wecom_message
 
 wecom_blueprint = Blueprint("wecom", __name__)
 
@@ -21,6 +21,6 @@ def wecom_route():
     raw_xml_data = request.data.decode('utf-8')
 
     threading.Thread(target=lambda: asyncio.run(
-        handle_wecom_message(raw_xml_data, **parsed_args))).start()
+        process_wecom_message(raw_xml_data, **parsed_args))).start()
 
     return Response("success", 200)
