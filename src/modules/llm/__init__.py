@@ -5,9 +5,10 @@ import asyncio
 from .prompt_manager import PromptManager
 
 
-class LLMModel(PromptManager):
+class LLMModel:
     def __init__(self, device: str, model_name="THUDM/chatglm3-6b"):
         self.device = device
+        self.prompt_manager = PromptManager()
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, trust_remote_code=True)
         self.model = AutoModelForCausalLM.from_pretrained(

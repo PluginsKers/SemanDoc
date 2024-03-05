@@ -68,7 +68,7 @@ class WeComApplication:
         logger.info(
             "WeCom application initialized for agent_id: %s", self.agent_id)
 
-    def send_message_async(self, user_id: str, content: str, question: str = None):
+    async def send_message_async(self, user_id: str, content: str, question: str = None):
         # If the HistoryRecords object does not exist
         if user_id not in self.historys:
             self.historys[user_id] = HistoryRecords()

@@ -33,12 +33,13 @@ async def handle_wecom_message(xml_str: str, **kwargs):
             records = app.historys.get(sender)
             history = [] if not records else records.get_raw_records()
             if history:
-                summary = llm.get_summarize(history)
+                summary = llm.prompt_manager.get_summarize(history)
                 reminder = llm.generate_sync(summary)
                 history = [{"role": "user", "content": "总结一下上面我们聊了什么？"},
                            {"role": "assistant", "metadata": "", "content": reminder}]
 
-            optimization = llm.get_optimize(standardized_docs, question)
+            optimization = llm.prompt_manager.get_optimize(
+                standardized_docs, question)
             response = llm.generate_sync(optimization, history)
 
             await app.send_message_async(sender, response, question)

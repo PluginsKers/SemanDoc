@@ -1,9 +1,10 @@
 import os
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
+import threading
 import time
-from typing import Optional, Tuple, List, Dict, Any
 import numpy as np
+from typing import Optional, Tuple, List, Dict, Any
+from concurrent.futures import ThreadPoolExecutor
 
 from langchain.vectorstores.faiss import FAISS
 from langchain.embeddings import HuggingFaceBgeEmbeddings
@@ -65,7 +66,7 @@ class VectorStore:
         self.index_dir = index_dir
         self.embedding = HuggingFaceBgeEmbeddings(
             model_name=embedding_model_name,
-            model_kwargs={"device": "cpu"},
+            model_kwargs={"device": "cuda:0"},
             encode_kwargs={"normalize_embeddings": True},
             query_instruction="为这个句子生成表示以用于检索相关文章：",
         )
@@ -75,6 +76,14 @@ class VectorStore:
         """
         Saves the FAISS index to the specified directory.
         """
+
+        def run_rebuild_index():
+            asyncio.run(self.rebuild_index())
+
+        # 启动新线程运行rebuild_index
+        rebuild_thread = threading.Thread(target=run_rebuild_index)
+        rebuild_thread.start()
+
         index_path = os.path.join(self.index_dir, "store")
         try:
             loop = asyncio.get_event_loop()
@@ -99,7 +108,7 @@ class VectorStore:
             index = FAISS.from_documents(
                 [
                     Document(
-                        page_content="I am a vector retrieval system, the brain of Xiaoning!",
+                        page_content="我是小宁，一个知识库管理助手！",
                         metadata={"ids": 0, "tags": ["__init__"]},
                     )
                 ],
@@ -257,33 +266,39 @@ class VectorStore:
 
     async def rebuild_index(self):
         """
-        Rebuilds the FAISS index from the current documents in the document store,
+        Asynchronously rebuilds the FAISS index from the current documents in the document store,
         optionally performing optimizations such as deduplication.
         """
-        valid_documents = []
-        seen_contents = set()
+        loop = asyncio.get_event_loop()
 
-        # Collect valid and unique documents
-        for doc_id, document in self.index.docstore._dict.items():
-            if self._is_document_currently_valid(document):
-                # Optional: Deduplication based on content
-                content_hash = hash(document.page_content)
-                if content_hash not in seen_contents:
-                    valid_documents.append(document)
-                    seen_contents.add(content_hash)
+        # Define the rebuild work as a separate function for ThreadPoolExecutor
+        def do_rebuild():
+            valid_documents = []
+            seen_contents = set()
 
-        logger.info(
-            f"Rebuilding index with {len(valid_documents)} valid documents.")
+            # Collect valid and unique documents
+            for doc_id, document in self.index.docstore._dict.items():
+                if self._is_document_currently_valid(document):
+                    # Optional: Deduplication based on content
+                    content_hash = hash(document.page_content)
+                    if content_hash not in seen_contents:
+                        valid_documents.append(document)
+                        seen_contents.add(content_hash)
 
-        # Create a new index with collected documents
-        new_index = FAISS.from_documents(valid_documents, self.embedding)
+            logger.info(
+                f"Rebuilding index with {len(valid_documents)} valid documents.")
 
-        # Replace the old index with the new one
-        self.index = new_index
+            # Create a new index with collected documents
+            new_index = FAISS.from_documents(valid_documents, self.embedding)
 
-        # Save the rebuilt index
-        await self.save_index()
-        logger.info("Index successfully rebuilt and saved.")
+            # Replace the old index with the new one
+            self.index = new_index
+
+            logger.info("Index successfully rebuilt.")
+
+        # Run the rebuild work in a ThreadPoolExecutor
+        with ThreadPoolExecutor() as executor:
+            await loop.run_in_executor(executor, do_rebuild)
 
     async def search(
         self,

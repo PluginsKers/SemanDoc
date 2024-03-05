@@ -4,7 +4,7 @@ import torch
 
 from src.modules.database import Database
 from src.modules.document.vecstore import VectorStore
-from src.modules.llm.llm_model import LLMModel
+from src.modules.llm import LLMModel
 from src.modules.wecom import WeComApplication
 from src.modules.logging import logger
 
@@ -66,7 +66,8 @@ def initialize():
 
     global llm
     if not llm:
-        logger.info("Initializing LLM Model...")
+        logger.info("Initializing LLM Model... %s",
+                    os.getenv("LLM_MODEL_PATH"))
 
         # Initialize the LLM Model with paths from environment variables
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
