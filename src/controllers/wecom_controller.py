@@ -15,11 +15,12 @@ async def handle_wecom_message(xml_str: str, **kwargs):
     sender = None  # Define sender initially to ensure it's available in the scope for error handling
     try:
         app = get_wecom_app()
-        sender, question, msg_type = get_msg_info(xml_str, **kwargs)
 
         kwargs.update({
             'msg_crypt': app.wxcpt
         })
+
+        sender, question, msg_type = get_msg_info(xml_str, **kwargs)
 
         if not app.is_on_cooldown(sender) and msg_type == "text":
             app.set_cooldown(sender, app.COOLDOWN_TIME)
