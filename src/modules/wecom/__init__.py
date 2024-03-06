@@ -27,21 +27,22 @@ class SendMessageError(Exception):
 
 class HistoryRecords:
     def __init__(self, max_length=3):
-        self.records = deque(maxlen=max_length)
+        self.history = deque(maxlen=max_length)
 
-    def add_record(self, question, answer):
-        if not isinstance(question, str) or not isinstance(answer, str):
+    def add_record(self, msg: str, answer: str):
+        if not isinstance(msg, str) or not isinstance(answer, str):
             raise ValueError("Both question and answer must be strings.")
-        self.records.append([question, answer])
+        self.history.append({"role": "user", "content": msg})
+        self.history.append(
+            {"role": "assistant", "metadata": "", "content": answer})
 
-    def get_records(self) -> List[str]:
-        return list(self.records)
+    def get_history(self) -> List[dict]:
+        return self.history
 
-    def get_raw_records(self) -> str:
+    def get_raw_history(self) -> str:
         raw = ""
-        for i, record in enumerate(self.records):
-            raw += f"> 用户：{record[0]}\n> 助手：{record[1]}\n"
-
+        for record in self.history:
+            raw += f"{record['role']}: {record['content']}\n"
         return raw
 
 
@@ -69,7 +70,7 @@ class WeComApplication:
         logger.info(
             "WeCom application initialized for agent_id: %s", self.agent_id)
 
-    async def send_message_async(self, user_id: str, content: str, question: str = None):
+    async def send_message_async(self, user_id: str, content: str, message: str = None):
         # If the HistoryRecords object does not exist
         if user_id not in self.historys:
             self.historys[user_id] = HistoryRecords()
@@ -102,9 +103,9 @@ class WeComApplication:
                                  result.get("errmsg"))
                     raise SendMessageError(result.get("errmsg"))
 
-                if question:
+                if message:
                     # Add record after successful message send
-                    self.historys[user_id].add_record(question, content)
+                    self.historys[user_id].add_record(message, content)
             except requests.exceptions.RequestException as e:
                 logger.exception(
                     "Network error occurred while sending message.")

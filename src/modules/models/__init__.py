@@ -6,8 +6,6 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForSequen
 
 from src.modules.document import Document
 
-from .prompt_manager import PromptManager
-
 
 class LLMModel:
     def __init__(self, model_name: str = "THUDM/chatglm3-6b", device: str = "cpu"):
@@ -17,7 +15,6 @@ class LLMModel:
                              'user_name': '小明'
                              }
         self.device = device
-        self.prompt_manager = PromptManager()
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, trust_remote_code=True)
         self.model = AutoModelForCausalLM.from_pretrained(
@@ -34,6 +31,16 @@ class LLMModel:
         response, history = self.model.chat(
             self.tokenizer, prompt, history=history)
         return response
+
+    def get_summarize(self, dialogue_content: str):
+        """
+        Generates a prompt for summarizing dialogue content.
+
+        :param dialogue_content: The text content of a dialogue.
+        :return: A prompt for generating a summary of the dialogue.
+        """
+        prompt = f"# 请根据以下对话内容生成一个摘要\n\n{dialogue_content}"
+        return self.generate(prompt)
 
 
 class Reranker:
