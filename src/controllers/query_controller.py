@@ -1,10 +1,10 @@
 from typing import Optional, List, Dict, Any
-from src import get_docstore, get_reranker
+from src import get_vector_store, get_reranker
 
 
 async def query_documents(
     query: str, k: int = 5, metadata: Optional[Dict[str, Any]] = None
-) -> List[Dict]:
+) -> List[dict]:
     """
     Searches for documents based on the provided query.
 
@@ -15,10 +15,10 @@ async def query_documents(
         filtering. Defaults to None.
 
     Returns:
-        List[Dict]: A list of dictionaries representing the search results.
+        List[dict]: A list of dictionaries representing the search results.
     """
     # Perform the document search using the global document store
-    initial_documents = await get_docstore().query(query=query, k=k, metadata=metadata)
+    initial_documents = await get_vector_store().query(query=query, k=k, filter=metadata)
 
     reranker = get_reranker()
     reranked_documents = reranker.rerank_documents(initial_documents, query)

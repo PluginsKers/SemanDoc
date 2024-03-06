@@ -305,7 +305,7 @@ class VectorStore:
         self,
         query: str,
         k: int = 5,
-        metadata: Optional[Dict[str, Any]] = None,
+        filter: Optional[Dict[str, Any]] = None,
         fetch_k: int = 20,
         **kwargs: Any
     ) -> List[Document]:
@@ -315,7 +315,7 @@ class VectorStore:
         Args:
         - query (str): Query string for similarity search.
         - k (int): Number of documents to retrieve.
-        - metadata (Optional[Dict[str, Any]]): Metadata filter for document
+        - filter (Optional[Dict[str, Any]]): Metadata filter for document
         retrieval.
         - fetch_k (int): Number of documents to fetch initially.
 
@@ -329,9 +329,9 @@ class VectorStore:
         docs = [Document(doc.page_content, doc.metadata)
                 for doc, _ in docs_and_scores]
 
-        if metadata is not None:
+        if filter is not None:
             valid_docs = [
-                doc for doc in docs if filter_by_metadata(doc.metadata, metadata) and self._is_document_currently_valid(doc)
+                doc for doc in docs if filter_by_metadata(doc.metadata, filter) and self._is_document_currently_valid(doc)
             ]
         else:
             valid_docs = [

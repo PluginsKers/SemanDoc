@@ -1,5 +1,5 @@
 import logging
-from src import get_wecom_app, get_llm, get_docstore, get_reranker
+from src import get_wecom_application, get_llm_model, get_vector_store, get_reranker
 from src.modules.wecom import HistoryRecords
 from src.modules.wecom.message import WecomMessage
 
@@ -17,7 +17,7 @@ def extract_message_info(wecom_message_xml: str, **kwargs):
 async def process_wecom_message(wecom_message_xml: str, **kwargs) -> None:
     sender_id = None  # Initial definition to ensure scope availability for error handling
     try:
-        wecom_app = get_wecom_app()
+        wecom_app = get_wecom_application()
 
         kwargs.update({
             'msg_crypt': wecom_app.wxcpt
@@ -28,9 +28,9 @@ async def process_wecom_message(wecom_message_xml: str, **kwargs) -> None:
 
         if not wecom_app.is_on_cooldown(sender_id) and message_type == "text":
             wecom_app.set_cooldown(sender_id, wecom_app.COOLDOWN_TIME)
-            language_model = get_llm()
+            language_model = get_llm_model()
             document_reranker = get_reranker()
-            initial_documents = await get_docstore().query(query=message_content, k=4)
+            initial_documents = await get_vector_store().query(query=message_content, k=4)
             reranked_documents = document_reranker.rerank_documents(
                 initial_documents, message_content)
             document_texts = "- " + \

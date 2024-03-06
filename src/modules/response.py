@@ -1,44 +1,51 @@
 import json
 import logging
-from flask import Response as _Response
+from flask import Response as FlaskResponse
 
+# Configure logger for this module
 logger = logging.getLogger(__name__)
 
 
-class Response(_Response):
+class Response(FlaskResponse):
     def __init__(
         self,
-        msg=None,
-        code=None,
+        message=None,
+        status_code=None,
         headers=None,
         data=None,
         content_type: str = "application/json",
         **kwargs
     ):
+        # Serialize message if it's a dictionary
+        if isinstance(message, dict):
+            message = json.dumps(message)
 
-        if isinstance(msg, dict):
-            msg = json.dumps(msg)
+        # Set default status code if not provided
+        if status_code is None:
+            status_code = 404
 
-        if code is None:
-            code = 404
+        # Prepare the response dictionary
+        response_dict = {"code": status_code, "msg": message}
 
-        response = {"code": code, "msg": msg}
+        # Include data in the response if provided
         if data is not None:
             if isinstance(data, (dict, list)):
-                response["data"] = data
+                response_dict["data"] = data
             else:
+                # Attempt to parse the data as JSON
                 try:
-                    logger.info("尝试转化输出格式")
-                    tmp_data = data
-                    tmp_data = json.loads(tmp_data)
-                    data = tmp_data
+                    logger.info("Attempting to format output")
+                    formatted_data = json.loads(data)
+                    response_dict["data"] = formatted_data
                 except json.JSONDecodeError:
-                    logger.warn("响应转化格式失败")
-                response["data"] = json.dumps(data, ensure_ascii=False)
+                    logger.warning("Failed to format response")
+                    response_dict["data"] = json.dumps(
+                        data, ensure_ascii=False)
 
+        # Initialize the parent Flask Response with the formatted JSON response
         super().__init__(
-            json.dumps(response, ensure_ascii=False),
-            response['code'],
+            json.dumps(response_dict, ensure_ascii=False),
+            response_dict['code'],
             headers,
             content_type,
             **kwargs

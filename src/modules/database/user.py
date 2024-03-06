@@ -1,10 +1,10 @@
 from src.utils.security import encrypt_password
-from src import get_database
+from src import get_database_instance
 
 
 class User:
     def __init__(self):
-        self.db = get_database()
+        self.db = get_database_instance()
 
     def user_exists(self, username: str):
         query = "SELECT * FROM users WHERE username = ?;"

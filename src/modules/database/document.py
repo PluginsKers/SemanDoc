@@ -1,9 +1,9 @@
-from src import get_database
+from src import get_database_instance
 
 
 class Document:
     def __init__(self):
-        self.db = get_database()
+        self.db = get_database_instance()
 
     def add_document(self, content: str, metadata: str):
         query = """INSERT INTO documents(content, metadata)

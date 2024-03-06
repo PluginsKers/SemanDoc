@@ -1,5 +1,5 @@
 from src.modules.document.vecstore import VectorStoreEditError
-from src import get_docstore
+from src import get_vector_store
 from typing import Union, Optional, List, Tuple
 from src.modules.document import Document
 
@@ -19,7 +19,7 @@ async def add_document(
         if not metadata or "page_content" not in data:
             raise ValueError("Invalid data provided for document addition.")
 
-        add_result = await get_docstore().add_documents(
+        add_result = await get_vector_store().add_documents(
             [Document(page_content=data["page_content"], metadata=metadata)]
         )
         if len(add_result) <= 0:
@@ -38,7 +38,7 @@ def delete_documents_by_ids(
     if comment:
         print(comment)
 
-    removal_result = get_docstore().remove_documents_by_ids(ids_to_delete)
+    removal_result = get_vector_store().remove_documents_by_ids(ids_to_delete)
 
     return removal_result
 
@@ -49,7 +49,7 @@ def delete_documents_by_id(
     if comment:
         print(comment)
 
-    removal_result = get_docstore().remove_documents_by_id(id_to_delete)
+    removal_result = get_vector_store().remove_documents_by_id(id_to_delete)
 
     return removal_result
 
@@ -60,6 +60,6 @@ def delete_documents_by_tags(
     if comment:
         print(comment)
 
-    removal_result = get_docstore().remove_documents_by_tags(tags_to_delete)
+    removal_result = get_vector_store().remove_documents_by_tags(tags_to_delete)
 
     return removal_result
