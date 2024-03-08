@@ -1,4 +1,3 @@
-from src.modules.document import Document
 import os
 import asyncio
 import threading
@@ -10,6 +9,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 from langchain.vectorstores.faiss import FAISS
 from langchain.embeddings import HuggingFaceBgeEmbeddings
+
+from src.modules.document import Document
 
 logger = logging.getLogger(__name__)
 
@@ -323,22 +324,34 @@ class VectorStore:
         - List[Document]: List of retrieved documents.
         """
 
+        if filter is None:
+            filter = {}
+
+        def powerset(tags: List[str]) -> List[List[str]]:
+            result = [[]]
+            for i in range(len(tags)):
+                tag = tags[i]
+                new_subsets = [subset + [tag] for subset in result]
+                result.extend(new_subsets)
+
+            return result
+
+        if "tags" in filter and isinstance(filter["tags"], list):
+            tags = filter.pop("tags")  # Extract and remove original tags
+            permutations_of_tags = powerset(tags)  # Generate permutations
+            filter.update({"tags": permutations_of_tags})
+
         score_threshold = kwargs.get("score_threshold")
         if score_threshold is not None:
             kwargs.update({"score_threshold": score_threshold + 0.18})
         docs_and_scores = await self.faiss.asimilarity_search_with_score(
-            query, k=fetch_k, fetch_k=fetch_k, **kwargs
+            query, filter=filter, k=fetch_k, fetch_k=fetch_k*2, **kwargs
         )
 
         docs = [Document(doc.page_content, doc.metadata)
                 for doc, _ in docs_and_scores]
 
-        if filter is not None:
-            valid_docs = [
-                doc for doc in docs if filter_by_metadata(doc.metadata, filter) and self._is_document_currently_valid(doc)
-            ]
-        else:
-            valid_docs = [
-                doc for doc in docs if self._is_document_currently_valid(doc)]
+        valided_documents = [
+            doc for doc in docs if self._is_document_currently_valid(doc)]
 
-        return valid_docs[:k]
+        return valided_documents[:k]
