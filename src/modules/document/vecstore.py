@@ -64,14 +64,14 @@ class VectorStore:
             index_dir (str): Path to the directory where the FAISS index will be stored.
             embedding_model_name (str): Name of the Hugging Face model to use for text embeddings.
         """
-        self.index_dir = index_dir
+        self.faiss_dir = index_dir
         self.embedding = HuggingFaceBgeEmbeddings(
             model_name=embedding_model_name,
             model_kwargs={"device": "cuda:0"},
             encode_kwargs={"normalize_embeddings": True},
             query_instruction="为这个句子生成表示以用于检索相关文章：",
         )
-        self.index: Optional[FAISS] = self._load_or_create_index()
+        self.faiss: Optional[FAISS] = self._load_or_create_index()
 
     async def save_index(self):
         """
@@ -85,11 +85,11 @@ class VectorStore:
         rebuild_thread = threading.Thread(target=run_rebuild_index)
         rebuild_thread.start()
 
-        index_path = os.path.join(self.index_dir, "store")
+        index_path = os.path.join(self.faiss_dir, "store")
         try:
             loop = asyncio.get_event_loop()
             with ThreadPoolExecutor() as executor:
-                await loop.run_in_executor(executor, self.index.save_local, index_path)
+                await loop.run_in_executor(executor, self.faiss.save_local, index_path)
             logger.info("Index successfully saved to %s", index_path)
 
         except Exception as e:
@@ -102,10 +102,10 @@ class VectorStore:
         Returns:
             FAISS: The loaded or newly created FAISS index.
         """
-        index_path = os.path.join(self.index_dir, "store")
+        index_path = os.path.join(self.faiss_dir, "store")
         if not os.path.exists(index_path):
             logger.info("Local database not found, creating a new one.")
-            os.makedirs(self.index_dir, exist_ok=True)
+            os.makedirs(self.faiss_dir, exist_ok=True)
             index = FAISS.from_documents(
                 [
                     Document(
@@ -128,7 +128,7 @@ class VectorStore:
         - int: The next available document ID.
         """
         all_ids = [
-            int(doc.metadata["ids"]) for _id, doc in self.index.docstore._dict.items()
+            int(doc.metadata["ids"]) for _id, doc in self.faiss.docstore._dict.items()
         ]
         max_ids = max(all_ids) if all_ids else 0
         return max_ids + 1
@@ -175,7 +175,7 @@ class VectorStore:
             next_id += 1
             added_documents.append(doc)
         try:
-            await self.index.aadd_documents(added_documents)
+            await self.faiss.aadd_documents(added_documents)
             await self.save_index()
         except Exception as e:
             logger.error("Failed to add documents: %s", e)
@@ -195,28 +195,28 @@ class VectorStore:
         - Tuple[int, int]: Count of removed docs and total count after removal.
         """
         if target_id_list is None:
-            self.index.docstore = {}
-            self.index.index_to_docstore_id = {}
-            n_removed = self.index.index.ntotal
-            n_total = self.index.index.ntotal
-            self.index.index.reset()
+            self.faiss.docstore = {}
+            self.faiss.index_to_docstore_id = {}
+            n_removed = self.faiss.index.ntotal
+            n_total = self.faiss.index.ntotal
+            self.faiss.index.reset()
             return n_removed, n_total
         set_ids = set(target_id_list)
         if len(set_ids) != len(target_id_list):
             raise ValueError("Duplicate ids in the list of ids to remove.")
         index_ids = [
             i_id
-            for i_id, d_id in self.index.index_to_docstore_id.items()
+            for i_id, d_id in self.faiss.index_to_docstore_id.items()
             if d_id in target_id_list
         ]
         n_removed = len(index_ids)
-        n_total = self.index.index.ntotal
-        self.index.index.remove_ids(np.array(index_ids, dtype=np.int64))
+        n_total = self.faiss.index.ntotal
+        self.faiss.index.remove_ids(np.array(index_ids, dtype=np.int64))
         for i_id, d_id in zip(index_ids, target_id_list):
-            del self.index.docstore._dict[d_id]
-            del self.index.index_to_docstore_id[i_id]
-        self.index.index_to_docstore_id = {
-            i: d_id for i, d_id in enumerate(self.index.index_to_docstore_id.values())
+            del self.faiss.docstore._dict[d_id]
+            del self.faiss.index_to_docstore_id[i_id]
+        self.faiss.index_to_docstore_id = {
+            i: d_id for i, d_id in enumerate(self.faiss.index_to_docstore_id.values())
         }
         asyncio.run(self.save_index())
         return n_removed, n_total
@@ -235,7 +235,7 @@ class VectorStore:
             raise ValueError("Parameter target_ids cannot be empty.")
 
         id_to_remove = []
-        for _id, doc in self.index.docstore._dict.items():
+        for _id, doc in self.faiss.docstore._dict.items():
             to_remove = False
             if doc.metadata["ids"] in target_ids:
                 to_remove = True
@@ -257,7 +257,7 @@ class VectorStore:
             raise ValueError("Parameter target_tags cannot be empty.")
 
         id_to_remove = []
-        for _id, doc in self.index.docstore._dict.items():
+        for _id, doc in self.faiss.docstore._dict.items():
             to_remove = False
             if doc.metadata["tags"] == target_tags:
                 to_remove = True
@@ -278,7 +278,7 @@ class VectorStore:
             seen_contents = set()
 
             # Collect valid and unique documents
-            for doc_id, document in self.index.docstore._dict.items():
+            for doc_id, document in self.faiss.docstore._dict.items():
                 if self._is_document_currently_valid(document):
                     # Optional: Deduplication based on content
                     content_hash = hash(document.page_content)
@@ -293,7 +293,7 @@ class VectorStore:
             new_index = FAISS.from_documents(valid_documents, self.embedding)
 
             # Replace the old index with the new one
-            self.index = new_index
+            self.faiss = new_index
 
             logger.info("Index successfully rebuilt.")
 
@@ -322,7 +322,11 @@ class VectorStore:
         Returns:
         - List[Document]: List of retrieved documents.
         """
-        docs_and_scores = await self.index.asimilarity_search_with_score(
+
+        score_threshold = kwargs.get("score_threshold")
+        if score_threshold is not None:
+            kwargs.update({"score_threshold": score_threshold + 0.18})
+        docs_and_scores = await self.faiss.asimilarity_search_with_score(
             query, k=fetch_k, fetch_k=fetch_k, **kwargs
         )
 

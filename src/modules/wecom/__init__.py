@@ -26,7 +26,7 @@ class SendMessageError(Exception):
 
 
 class HistoryRecords:
-    def __init__(self, max_length=3):
+    def __init__(self, max_length=1):
         self.history = deque(maxlen=max_length)
 
     def add_record(self, msg: str, answer: str):
@@ -70,7 +70,7 @@ class WeComApplication:
         logger.info(
             "WeCom application initialized for agent_id: %s", self.agent_id)
 
-    async def send_message_async(self, user_id: str, content: str, message: str = None):
+    async def send_message_async(self, user_id: str, content: str, message: str = None, on_ai: bool = False):
         # If the HistoryRecords object does not exist
         if user_id not in self.historys:
             self.historys[user_id] = HistoryRecords()
@@ -84,12 +84,15 @@ class WeComApplication:
 
         def send_message():
             send_url = f"{self.API_URL}message/send?access_token={self.access_token}"
+            send_message = content
+            if on_ai:
+                send_message += "\n注意：未检索到与问题相关信息，内容由AI生成，可能不准确。"
             data = {
                 "touser": user_id,
                 "msgtype": "text",
                 "agentid": self.agent_id,
                 "text": {
-                    "content": content
+                    "content": send_message
                 },
                 "safe": 0
             }

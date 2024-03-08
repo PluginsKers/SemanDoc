@@ -9,11 +9,6 @@ from src.modules.document import Document
 
 class LLMModel:
     def __init__(self, model_name: str = "THUDM/chatglm3-6b", device: str = "cpu"):
-        self.session_meta = {'user_info': '我是小明，是一个男性，是一位有特点的大学生，经常会使用一些网络词语和小宁交流，虽然助手小宁有时不懂其含义，但是还是会尽力为我解答。',
-                             'bot_info': '小宁，一个大学知识库的管理助手，勤奋敬业。对于自己不知道答案的问题不会轻易解答，但凡有一点错误都会很自责，所以深受同学和教职工们的爱戴。',
-                             'bot_name': '小宁',
-                             'user_name': '小明'
-                             }
         self.device = device
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, trust_remote_code=True)
@@ -22,12 +17,12 @@ class LLMModel:
         self.model.to(self.device)
         self.model.eval()
 
-    async def generate_async(self, prompt, history=[]) -> str:
+    async def generate_async(self, prompt: str, history: list = []) -> str:
         loop = asyncio.get_event_loop()
         response, history = await loop.run_in_executor(None, self.generate, prompt, history)
         return response
 
-    def generate(self, prompt, history=[]) -> str:
+    def generate(self, prompt: str, history: list = []) -> str:
         response, history = self.model.chat(
             self.tokenizer, prompt, history=history)
         return response
@@ -39,8 +34,12 @@ class LLMModel:
         :param dialogue_content: The text content of a dialogue.
         :return: A prompt for generating a summary of the dialogue.
         """
-        prompt = f"# 请根据以下对话内容生成一个摘要\n\n{dialogue_content}"
+        prompt = f"<指令>请用一句话概括聊天记录</指令>\n<聊天记录>{dialogue_content}</聊天记录>"
         return self.generate(prompt)
+
+    def get_answer(self, message: str, history: list = []):
+        prompt = f"<问题>{message}</问题>"
+        return self.generate(prompt, history)
 
 
 class Reranker:
@@ -54,8 +53,8 @@ class Reranker:
         self.model.eval()
 
     def rerank_documents(self, documents: List[Document], query: str) -> List[Document]:
-        if len(documents) == 0:
-            return []
+        if len(documents) < 2:
+            return documents
 
         pairs: List[Tuple[str, Document]] = [[query, doc] for doc in documents]
         with torch.no_grad():

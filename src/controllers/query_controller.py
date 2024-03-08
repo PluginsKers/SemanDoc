@@ -3,7 +3,7 @@ from src import get_vector_store, get_reranker
 
 
 async def query_documents(
-    query: str, k: int = 5, metadata: Optional[Dict[str, Any]] = None
+    query: str, k: int = 5, metadata: Optional[Dict[str, Any]] = None, score_threshold: Optional[float] = 1
 ) -> List[dict]:
     """
     Searches for documents based on the provided query.
@@ -17,8 +17,11 @@ async def query_documents(
     Returns:
         List[dict]: A list of dictionaries representing the search results.
     """
+    if score_threshold:
+        pass
+
     # Perform the document search using the global document store
-    initial_documents = await get_vector_store().query(query=query, k=k, filter=metadata)
+    initial_documents = await get_vector_store().query(query=query, k=k, filter=metadata, score_threshold=score_threshold)
 
     reranker = get_reranker()
     reranked_documents = reranker.rerank_documents(initial_documents, query)

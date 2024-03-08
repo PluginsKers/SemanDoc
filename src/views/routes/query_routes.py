@@ -26,14 +26,15 @@ query_args = {
     # Default value is 6
     "k": fields.Function(deserialize=parse_int_or_default, missing=6, allow_none=True),
     "filter": fields.Dict(missing=None, allow_none=True),  # Default is None
+    "score_threshold": fields.Float(missing=1, allow_none=True),
 }
 
 
 @query_blueprint.route("/", methods=['POST', 'OPTIONS'])
 @use_kwargs(query_args, location="json")
-async def query_route(query: str, k: int, filter: dict):
+async def query_route(query: str, k: int, filter: dict, score_threshold: float):
     try:
-        results = await query_documents(query, k, filter)
+        results = await query_documents(query, k, filter, score_threshold)
         return Response("Query successful.", 200, data=results)
 
     except ValidationError as error:

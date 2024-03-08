@@ -65,7 +65,7 @@ def initialize():
                     os.getenv("LLM_MODEL_PATH"))
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         llm_model = LLMModel(os.getenv("LLM_MODEL_PATH"), device)
-        logger.info("LLM Model initialized on device %s", device)
+        logger.info("LLM Model initialized on device %s.", device)
 
     global reranker_model
     if not reranker_model:
@@ -73,7 +73,7 @@ def initialize():
                     os.getenv("RERANKER_MODEL_PATH"))
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         reranker_model = Reranker(os.getenv("RERANKER_MODEL_PATH"), device)
-        logger.info("Reranker Model initialized on device %s", device)
+        logger.info("Reranker Model initialized on device %s.", device)
 
 
 def get_reranker() -> Reranker:
