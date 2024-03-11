@@ -2,6 +2,7 @@ import json
 from flask import Blueprint
 from webargs import fields, validate
 from webargs.flaskparser import use_kwargs
+from src.modules.document import Document
 from src.modules.document.vecstore import VectorStoreEditError
 from src.modules.response import Response
 from src.modules.string_processor import processor
@@ -9,32 +10,56 @@ from src.controllers.edit_controller import (
     add_document,
     delete_documents_by_id,
     delete_documents_by_ids,
+    modify_documents_by_ids,
     delete_documents_by_tags,
 )
 
 editor_blueprint = Blueprint("editor", __name__)
 
-shared_args = {
-    "comment": fields.Str(missing=None),
+modify_args = {
+    "target": fields.Int(required=True),
+    "type": fields.Str(required=True, validate=validate.OneOf(["ids", "tags", "id"])),
+    "data": fields.Str(required=True, validate=lambda val: len(val) > 5),
+    "metadata": fields.Dict(required=True)
 }
 
 remove_args = {
     "target": fields.List(fields.Int(), required=True),
-    "type": fields.Str(required=True, validate=validate.OneOf(["ids", "tags", "id"])),
-    **shared_args,
+    "type": fields.Str(required=True, validate=validate.OneOf(["ids", "tags", "id"]))
 }
 
 add_args = {
     "data": fields.Str(required=True, validate=lambda val: len(val) > 5),
     "metadata": fields.Dict(required=True),
-    "preprocess": fields.Bool(missing=False),
-    **shared_args,
+    "preprocess": fields.Bool(missing=False)
 }
 
 
-@editor_blueprint.route("/remove", methods=['POST', 'OPTIONS'])
+@editor_blueprint.route("/modify", methods=['POST'])
+@use_kwargs(modify_args, location="json")
+async def modify_document_route(target: int, type: str, data: str, metadata: dict):
+    try:
+        modify_functions = {
+            "ids": modify_documents_by_ids,
+        }
+
+        results = await modify_functions[type](target, Document(data, metadata).to_dict())
+
+        if isinstance(results, tuple) and results[0]:
+            docs = [doc.to_dict() for doc in results[0]]
+            return Response("Documents modify successfully.", 200, data=docs)
+
+        return Response("Unknown error occurred.", 400)
+
+    except (json.JSONDecodeError, TypeError) as error:
+        return Response(f"Invalid input data: {error}", 400)
+    except VectorStoreEditError as error:
+        return Response(f"VectorStore operation failed: {error}", 400)
+
+
+@editor_blueprint.route("/remove", methods=['POST'])
 @use_kwargs(remove_args, location="json")
-def remove_document_route(target: list, type: str, comment: str):
+async def remove_document_route(target: list, type: str):
     try:
         # Use a dictionary for type mapping for better readability
         delete_functions = {
@@ -43,7 +68,7 @@ def remove_document_route(target: list, type: str, comment: str):
             "id": delete_documents_by_id,
         }
 
-        results = delete_functions[type](target, comment)
+        results = await delete_functions[type](target)
 
         if isinstance(results, tuple):
             n_removed, n_total = results
@@ -65,9 +90,9 @@ def remove_document_route(target: list, type: str, comment: str):
         return Response(f"VectorStore operation failed: {error}", 400)
 
 
-@editor_blueprint.route("/add", methods=['POST', 'OPTIONS'])
+@editor_blueprint.route("/add", methods=['POST'])
 @use_kwargs(add_args, location="json")
-async def add_document_route(data: str, metadata: dict, comment: str, preprocess: bool):
+async def add_document_route(data: str, metadata: dict, preprocess: bool):
     try:
         if preprocess:
             data = processor.replace_char_by_list(
@@ -77,7 +102,7 @@ async def add_document_route(data: str, metadata: dict, comment: str, preprocess
 
         doc_obj = {"page_content": data, "metadata": metadata}
 
-        results = await add_document(doc_obj, comment)
+        results = await add_document(doc_obj)
 
         if isinstance(results, tuple) and results[0]:
             added_docs = [doc.to_dict() for doc in results[0]]

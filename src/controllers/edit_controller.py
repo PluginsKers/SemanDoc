@@ -9,22 +9,22 @@ logger = logging.getLogger(__name__)
 
 
 async def add_document(
-    data: dict, comment: Optional[str] = None
+    data: dict
 ) -> Union[Tuple[List[Document]], str]:
-    if comment:
-        logger.info(comment)  # Using logging instead of print
-
     try:
+        store = get_vector_store()
         metadata = data.get("metadata")
         if not metadata or "page_content" not in data:
             raise ValueError("Invalid data provided for document addition.")
 
-        add_result = await get_vector_store().add_documents(
+        add_result = await store.add_documents(
             [Document(page_content=data["page_content"], metadata=metadata)]
         )
         if len(add_result) <= 0:
             raise VectorStoreEditError(
                 "Failed to add document to the database.")
+
+        await store.save_index()
 
         return tuple([add_result])
     except Exception as e:
@@ -32,34 +32,73 @@ async def add_document(
         raise  # Rethrowing the exception after logging
 
 
-def delete_documents_by_ids(
-    ids_to_delete: List[int], comment: Optional[str] = None
-) -> Union[Tuple[int, int], str]:
-    if comment:
-        print(comment)
+async def modify_documents_by_ids(
+    ids: int,
+    data: dict
+) -> Union[Tuple[List[Document]], str]:
+    try:
+        store = get_vector_store()
 
-    removal_result = get_vector_store().remove_documents_by_ids(ids_to_delete)
+        removal_result = store.remove_documents_by_ids([ids])
+        if isinstance(removal_result, tuple):
+            n_removed, n_total = removal_result
+            if n_removed == 0:
+                return []
+
+            metadata = data.get("metadata")
+            if not metadata or "page_content" not in data:
+                raise ValueError("Invalid data provided for document modify.")
+
+            add_result = await get_vector_store().add_documents(
+                [Document(page_content=data["page_content"], metadata=metadata)]
+            )
+
+            if len(add_result) <= 0:
+                raise VectorStoreEditError(
+                    "Failed to modify document from the database.")
+
+            await store.save_index()
+
+            return tuple([add_result])
+    except Exception as e:
+        logger.error("An error occurred while modify a document: %s", str(e))
+        raise  # Rethrowing the exception after logging
+
+
+async def delete_documents_by_ids(
+    ids_to_delete: List[int]
+) -> Union[Tuple[int, int], str]:
+
+    store = get_vector_store()
+
+    removal_result = store.remove_documents_by_ids(ids_to_delete)
+
+    await store.save_index()
 
     return removal_result
 
 
-def delete_documents_by_id(
-    id_to_delete: List[str], comment: Optional[str] = None
+async def delete_documents_by_id(
+    id_to_delete: List[str]
 ) -> Union[Tuple[int, int], str]:
-    if comment:
-        print(comment)
 
-    removal_result = get_vector_store().remove_documents_by_id(id_to_delete)
+    store = get_vector_store()
+
+    removal_result = store.remove_documents_by_id(id_to_delete)
+
+    await store.save_index()
 
     return removal_result
 
 
-def delete_documents_by_tags(
-    tags_to_delete: List[str], comment: Optional[str] = None
+async def delete_documents_by_tags(
+    tags_to_delete: List[str]
 ) -> Union[Tuple[int, int], str]:
-    if comment:
-        print(comment)
 
-    removal_result = get_vector_store().remove_documents_by_tags(tags_to_delete)
+    store = get_vector_store()
+
+    removal_result = store.remove_documents_by_tags(tags_to_delete)
+
+    await store.save_index()
 
     return removal_result

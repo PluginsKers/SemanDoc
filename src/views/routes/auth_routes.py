@@ -13,7 +13,7 @@ login_args = {
 }
 
 
-@auth_blueprint.route('/login', methods=['POST', 'OPTIONS'])
+@auth_blueprint.route('/login', methods=['POST'])
 @use_kwargs(login_args, location="json")
 def login(username, password):
     token = authenticate(username, password)

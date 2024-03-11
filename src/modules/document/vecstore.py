@@ -177,7 +177,6 @@ class VectorStore:
             added_documents.append(doc)
         try:
             await self.faiss.aadd_documents(added_documents)
-            await self.save_index()
         except Exception as e:
             logger.error("Failed to add documents: %s", e)
         return added_documents
@@ -219,7 +218,6 @@ class VectorStore:
         self.faiss.index_to_docstore_id = {
             i: d_id for i, d_id in enumerate(self.faiss.index_to_docstore_id.values())
         }
-        asyncio.run(self.save_index())
         return n_removed, n_total
 
     def remove_documents_by_ids(self, target_ids: List[int]) -> Tuple[int, int]:

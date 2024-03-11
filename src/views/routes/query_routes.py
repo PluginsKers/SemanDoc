@@ -30,7 +30,7 @@ query_args = {
 }
 
 
-@query_blueprint.route("/", methods=['POST', 'OPTIONS'])
+@query_blueprint.route("/", methods=['POST'])
 @use_kwargs(query_args, location="json")
 async def query_route(query: str, k: int, filter: dict, score_threshold: float):
     try:
