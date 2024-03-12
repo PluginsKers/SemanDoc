@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 async def add_document(
     data: dict[str, Union[str, Dict[str, Any]]]
-) -> Union[List[Document], str]:
+) -> List[Document]:
     try:
         store = get_vector_store()
         doc_db = DocumentDB()
@@ -42,7 +42,7 @@ async def add_document(
 async def modify_document_by_ids(
     ids: int,
     data: dict[str, Union[str, Dict[str, Any]]]
-) -> Union[Document, str]:
+) -> Document:
     try:
         store = get_vector_store()
         doc_db = DocumentDB()
@@ -81,19 +81,6 @@ async def delete_documents_by_ids(
     store = get_vector_store()
 
     removal_result = store.remove_documents_by_ids(ids_to_delete)
-
-    await store.save_index()
-
-    return removal_result
-
-
-async def delete_documents_by_id(
-    id_to_delete: List[str]
-) -> Union[Tuple[int, int], str]:
-
-    store = get_vector_store()
-
-    removal_result = store.remove_documents_by_id(id_to_delete)
 
     await store.save_index()
 

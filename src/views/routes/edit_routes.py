@@ -9,7 +9,6 @@ from src.modules.response import Response
 from src.modules.string_processor import processor
 from src.controllers.edit_controller import (
     add_document,
-    delete_documents_by_id,
     delete_documents_by_ids,
     modify_document_by_ids,
     delete_documents_by_tags,
@@ -66,7 +65,6 @@ async def remove_document_route(target: list, type: str):
         delete_functions = {
             "ids": delete_documents_by_ids,
             "tags": delete_documents_by_tags,
-            "id": delete_documents_by_id,
         }
 
         results = await delete_functions[type](target)
@@ -109,10 +107,11 @@ async def add_document_route(data: str, metadata: dict, preprocess: bool):
 
         doc_obj = {"page_content": data, "metadata": metadata}
 
-        results = await add_document(doc_obj)
+        result = await add_document(doc_obj)
 
-        if isinstance(results, List[Document]):
-            added_docs = [doc.to_dict() for doc in results]
+        if isinstance(result, List[Document]):
+            added_docs = [doc.to_dict() for doc in result]
+            print(added_docs)
             return Response("Documents added successfully.", 200, data=added_docs)
 
         return Response("Unknown error occurred.", 400)
