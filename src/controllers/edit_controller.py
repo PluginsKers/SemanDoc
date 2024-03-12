@@ -1,4 +1,4 @@
-from src.modules.document.vecstore import VectorStoreEditError
+from src.modules.document.vecstore import VecstoreEditError
 from src import get_vector_store
 from typing import Any, Dict, Union, List, Tuple
 from src.modules.document import Document
@@ -25,7 +25,7 @@ async def add_document(
             [Document(page_content, metadata)]
         )
         if len(add_result) <= 0:
-            raise VectorStoreEditError(
+            raise VecstoreEditError(
                 "Failed to add document to the database.")
 
         doc_db.add_document(page_content, str(metadata))
@@ -62,7 +62,7 @@ async def modify_documents_by_ids(
             )
 
             if len(add_result) <= 0:
-                raise VectorStoreEditError(
+                raise VecstoreEditError(
                     "Failed to modify document from the database.")
 
             await store.save_index()

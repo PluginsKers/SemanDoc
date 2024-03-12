@@ -3,7 +3,7 @@ from flask import Blueprint
 from webargs import fields, validate
 from webargs.flaskparser import use_kwargs
 from src.modules.document import Document
-from src.modules.document.vecstore import VectorStoreEditError
+from src.modules.document.vecstore import VecstoreEditError
 from src.modules.response import Response
 from src.modules.string_processor import processor
 from src.controllers.edit_controller import (
@@ -53,7 +53,7 @@ async def modify_document_route(target: int, type: str, data: str, metadata: dic
 
     except (json.JSONDecodeError, TypeError) as error:
         return Response(f"Invalid input data: {error}", 400)
-    except VectorStoreEditError as error:
+    except VecstoreEditError as error:
         return Response(f"VectorStore operation failed: {error}", 400)
 
 
@@ -86,7 +86,7 @@ async def remove_document_route(target: list, type: str):
 
     except (json.JSONDecodeError, TypeError) as error:
         return Response(f"Invalid input data: {error}", 400)
-    except VectorStoreEditError as error:
+    except VecstoreEditError as error:
         return Response(f"VectorStore operation failed: {error}", 400)
 
 
@@ -112,5 +112,5 @@ async def add_document_route(data: str, metadata: dict, preprocess: bool):
 
     except (json.JSONDecodeError, TypeError) as error:
         return Response(f"Invalid input data: {error}", 400)
-    except VectorStoreEditError as error:
+    except VecstoreEditError as error:
         return Response(f"VectorStore operation failed: {error}", 400)
