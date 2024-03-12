@@ -1,5 +1,5 @@
 import time
-from typing import List, Optional
+from typing import List, Optional, Union
 
 
 class Tags:
@@ -54,7 +54,7 @@ class Metadata:
 
 
 class Document:
-    def __init__(self, page_content, metadata=None):
+    def __init__(self, page_content: str, metadata: Union[dict, Metadata] = None):
         self.page_content = page_content
         if metadata is None:
             self.metadata = Metadata()

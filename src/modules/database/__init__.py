@@ -73,7 +73,7 @@ class Database:
 
         document_table_sql = """CREATE TABLE IF NOT EXISTS documents (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                content TEXT NOT NULL,
+                                page_content TEXT NOT NULL,
                                 metadata TEXT NOT NULL);"""
 
         self.execute_query(user_table_sql)
