@@ -108,10 +108,8 @@ async def add_document_route(data: str, metadata: dict, preprocess: bool):
         doc_obj = {"page_content": data, "metadata": metadata}
 
         result = await add_document(doc_obj)
-
-        if isinstance(result, List[Document]):
+        if isinstance(result, list):
             added_docs = [doc.to_dict() for doc in result]
-            print(added_docs)
             return Response("Documents added successfully.", 200, data=added_docs)
 
         return Response("Unknown error occurred.", 400)

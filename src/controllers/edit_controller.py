@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 async def add_document(
-    data: dict[str, Union[str, Dict[str, Any]]]
+    data: dict[str, Any]
 ) -> List[Document]:
     try:
         store = get_vector_store()
@@ -41,7 +41,7 @@ async def add_document(
 
 async def modify_document_by_ids(
     ids: int,
-    data: dict[str, Union[str, Dict[str, Any]]]
+    data: dict[str, Any]
 ) -> Document:
     try:
         store = get_vector_store()
