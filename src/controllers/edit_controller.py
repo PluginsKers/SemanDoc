@@ -30,7 +30,7 @@ async def add_document(
                 "Failed to add document to the database.")
 
         doc_db.add_document(new_doc.page_content,
-                            str(new_doc.metadata.to_dict()))
+                            str(new_doc.metadata))
         await store.save_index()
 
         return results
@@ -65,7 +65,7 @@ async def modify_document_by_ids(
                     "Failed to add document to the database.")
 
             doc_db.add_document(new_doc.page_content,
-                                str(new_doc.metadata.to_dict()))
+                                str(new_doc.metadata))
             await store.save_index()
 
             return results[0]
