@@ -1,9 +1,10 @@
-from src.modules.document.vecstore import VecstoreEditError
-from src import get_vector_store
 from typing import Any, Dict, Union, List, Tuple
-from src.modules.document import Document
 
+from src.modules.document.vecstore import VecstoreEditError
+from src.modules.document import Document
 from src.modules.database.document import Document as DocumentDB
+
+from src import get_vector_store
 
 
 import logging
@@ -12,38 +13,39 @@ logger = logging.getLogger(__name__)
 
 async def add_document(
     data: dict[str, Union[str, Dict[str, Any]]]
-) -> Union[Tuple[List[Document]], str]:
+) -> Union[List[Document], str]:
     try:
         store = get_vector_store()
         doc_db = DocumentDB()
         if "metadata" not in data or "page_content" not in data:
-            raise ValueError("Invalid data provided for document addition.")
+            raise ValueError(
+                "Invalid data provided for document modification.")
 
         metadata = data['metadata']
         page_content = data['page_content']
-        add_result = await store.add_documents(
-            [Document(page_content, metadata)]
-        )
-        if len(add_result) <= 0:
+        new_doc = Document(page_content, metadata)
+        results = await store.add_documents([new_doc])
+        if len(results) <= 0:
             raise VecstoreEditError(
                 "Failed to add document to the database.")
 
-        doc_db.add_document(page_content, str(metadata))
+        doc_db.add_document(new_doc.page_content,
+                            str(new_doc.metadata.to_dict()))
         await store.save_index()
 
-        return tuple([add_result])
+        return results
     except Exception as e:
         logger.error("An error occurred while adding a document: %s", str(e))
         raise  # Rethrowing the exception after logging
 
 
-async def modify_documents_by_ids(
+async def modify_document_by_ids(
     ids: int,
     data: dict[str, Union[str, Dict[str, Any]]]
-) -> Union[Tuple[List[Document]], str]:
+) -> Union[Document, str]:
     try:
         store = get_vector_store()
-
+        doc_db = DocumentDB()
         removal_result = store.remove_documents_by_ids([ids])
         if isinstance(removal_result, tuple):
             n_removed, n_total = removal_result
@@ -52,22 +54,21 @@ async def modify_documents_by_ids(
 
             if "metadata" not in data or "page_content" not in data:
                 raise ValueError(
-                    "Invalid data provided for document addition.")
+                    "Invalid data provided for document modification.")
 
             metadata = data['metadata']
             page_content = data['page_content']
-
-            add_result = await get_vector_store().add_documents(
-                [Document(page_content, str(metadata))]
-            )
-
-            if len(add_result) <= 0:
+            new_doc = Document(page_content, metadata)
+            results = await store.add_documents([new_doc])
+            if len(results) <= 0:
                 raise VecstoreEditError(
-                    "Failed to modify document from the database.")
+                    "Failed to add document to the database.")
 
+            doc_db.add_document(new_doc.page_content,
+                                str(new_doc.metadata.to_dict()))
             await store.save_index()
 
-            return tuple([add_result])
+            return results[0]
     except Exception as e:
         logger.error("An error occurred while modify a document: %s", str(e))
         raise  # Rethrowing the exception after logging

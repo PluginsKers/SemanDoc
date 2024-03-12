@@ -1,4 +1,5 @@
 import json
+from typing import List
 from flask import Blueprint
 from webargs import fields, validate
 from webargs.flaskparser import use_kwargs
@@ -10,7 +11,7 @@ from src.controllers.edit_controller import (
     add_document,
     delete_documents_by_id,
     delete_documents_by_ids,
-    modify_documents_by_ids,
+    modify_document_by_ids,
     delete_documents_by_tags,
 )
 
@@ -40,13 +41,13 @@ add_args = {
 async def modify_document_route(target: int, type: str, data: str, metadata: dict):
     try:
         modify_functions = {
-            "ids": modify_documents_by_ids,
+            "ids": modify_document_by_ids,
         }
 
-        results = await modify_functions[type](target, Document(data, metadata).to_dict())
+        result_doc = await modify_functions[type](target, Document(data, metadata).to_dict())
 
-        if isinstance(results, tuple) and results[0]:
-            docs = [doc.to_dict() for doc in results[0]]
+        if isinstance(result_doc, Document):
+            docs = [result_doc.to_dict()]
             return Response("Documents modify successfully.", 200, data=docs)
 
         return Response("Unknown error occurred.", 400)
@@ -96,16 +97,22 @@ async def add_document_route(data: str, metadata: dict, preprocess: bool):
     try:
         if preprocess:
             data = processor.replace_char_by_list(
-                data, [(",", "，"), (": ", "："), ("!", "！"),
-                       ("?", "？"), ("\n", " ")]
+                data,
+                [
+                    (",", "，"),
+                    (": ", "："),
+                    ("!", "！"),
+                    ("?", "？"),
+                    ("\n", " ")
+                ]
             )
 
         doc_obj = {"page_content": data, "metadata": metadata}
 
         results = await add_document(doc_obj)
 
-        if isinstance(results, tuple) and results[0]:
-            added_docs = [doc.to_dict() for doc in results[0]]
+        if isinstance(results, List[Document]):
+            added_docs = [doc.to_dict() for doc in results]
             return Response("Documents added successfully.", 200, data=added_docs)
 
         return Response("Unknown error occurred.", 400)
