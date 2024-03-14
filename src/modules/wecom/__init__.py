@@ -86,7 +86,7 @@ class WeComApplication:
             send_url = f"{self.API_URL}message/send?access_token={self.access_token}"
             send_message = content
             if on_ai:
-                send_message += "\n注意：未检索到与问题相关信息，内容由AI生成，可能不准确。"
+                send_message += "\n注意：未检索到相关信息，内容由AI生成，可能不准确。"
             data = {
                 "touser": user_id,
                 "msgtype": "text",
