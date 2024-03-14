@@ -39,7 +39,7 @@ class HistoryRecords:
     def __init__(self, max_length=1):
         self.history = deque(maxlen=max_length)
         # Set the initial time as the current time
-        self.time = time()
+        self.time = time.time()
 
     def add_record(self, msg: str, answer: str):
         # Check if more than 3 hours have passed
