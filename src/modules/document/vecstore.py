@@ -321,12 +321,15 @@ class VectorStore:
         Returns:
         - List[Document]: List of retrieved documents.
         """
+        if filter is not None:
+            filter = filter.to_filter()
+
         score_threshold = kwargs.get("score_threshold")
         if score_threshold is not None:
             kwargs.update({"score_threshold": score_threshold + 0.18})
 
         docs_and_scores = await self.faiss.asimilarity_search_with_score(
-            query, filter=filter.to_filter(), k=fetch_k, fetch_k=fetch_k*2, **kwargs
+            query, filter=filter, k=fetch_k, fetch_k=fetch_k*2, **kwargs
         )
 
         docs = [Document(doc.page_content, doc.metadata)

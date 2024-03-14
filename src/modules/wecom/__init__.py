@@ -11,6 +11,16 @@ from collections import deque
 logger = logging.getLogger(__name__)
 
 
+class DepartmentRetrievalError(Exception):
+    def __init__(self, error_code, error_message):
+        self.error_code = error_code
+        self.error_message = error_message
+        super().__init__(f"Error {error_code}: {error_message}")
+
+    def __str__(self):
+        return f"[{self.error_code}] {self.error_message}"
+
+
 class TokenUpdateError(Exception):
     """Exception raised when an error occurs during the access token update process."""
 
@@ -48,6 +58,9 @@ class HistoryRecords:
 
 class WeComApplication:
     API_URL = "https://qyapi.weixin.qq.com/cgi-bin/"
+    DEPARTMENT_LIST_URL = f"{API_URL}department/list"
+    SEND_MESSAGE_URL = f"{API_URL}message/send"
+    USER_INFO_URL = f"{API_URL}user/get"
     TOKEN_URL = f"{API_URL}gettoken"
 
     COOLDOWN_TIME = 30
@@ -70,6 +83,12 @@ class WeComApplication:
         logger.info(
             "WeCom application initialized for agent_id: %s", self.agent_id)
 
+        try:
+            self.update_access_token()
+        except Exception as e:
+            logger.exception(
+                "Error updating access token.")
+
     async def send_message_async(self, user_id: str, content: str, message: str = None, on_ai: bool = False):
         # If the HistoryRecords object does not exist
         if user_id not in self.historys:
@@ -77,13 +96,12 @@ class WeComApplication:
 
         try:
             self.set_cooldown(user_id, WeComApplication.COOLDOWN_TIME)
-            self.update_access_token()
         except Exception as e:
             logger.exception(
-                "Error setting cooldown or updating access token.")
+                "Error setting cooldown.")
 
         def send_message():
-            send_url = f"{self.API_URL}message/send?access_token={self.access_token}"
+            send_url = f"{self.SEND_MESSAGE_URL}?access_token={self.access_token}"
             send_message = content
             if on_ai:
                 send_message += "\n注意：未检索到相关信息，内容由AI生成，可能不准确。"
@@ -123,6 +141,55 @@ class WeComApplication:
 
         thread = threading.Thread(target=send_message)
         thread.start()
+
+    def get_user_info(self, userid: str) -> dict:
+        response = requests.get(self.USER_INFO_URL, params={
+            'access_token': self.access_token,
+            'userid': userid
+        })
+        response.raise_for_status()  # Raises an HTTPError for bad responses
+        result = response.json()
+
+        if result.get('errcode') == 0:
+            return result
+        else:
+            raise DepartmentRetrievalError(
+                result.get('errcode'), result.get('errmsg'))
+
+    def get_dep_name(self, userid: str) -> str:
+        user_info = self.get_user_info(userid)
+        user_department = user_info.get('main_department')
+        response = requests.get(self.DEPARTMENT_LIST_URL, params={
+            'access_token': self.access_token,
+            'id': 8  # Main Department ID
+        })
+        response.raise_for_status()  # Raises an HTTPError for bad responses
+        result = response.json()
+
+        if result.get('errcode') == 0 and result.get('department'):
+            def find_parent_until_top(departments, dep_id):
+                current_id = dep_id
+                current_dep = None
+
+                while current_id is not None:
+                    # 查找当前部门
+                    current_dep = next(
+                        (dep for dep in departments if dep["id"] == current_id), None)
+
+                    # 如果找不到部门或者父部门ID为8，则结束循环
+                    if current_dep is None or current_dep["parentid"] == 8:
+                        break
+
+                    # 更新current_id为父部门ID以继续向上追溯
+                    current_id = current_dep["parentid"]
+
+                return current_dep
+
+            deps: list = result['department']
+            return find_parent_until_top(deps, user_department)['name']
+        else:
+            raise DepartmentRetrievalError(
+                result.get('errcode'), result.get('errmsg'))
 
     def update_access_token(self):
         if time.time() >= self.token_expiration:
