@@ -43,18 +43,19 @@ class HistoryRecords:
 
     def add_record(self, msg: str, answer: str):
         # Check if more than 3 hours have passed
-        if time() - self.time > 10800:  # 3 hours in seconds
+        if time.time() - self.time > 10800:  # 3 hours in seconds
             self.clear_history()  # Clear history if more than 3 hours
         if not isinstance(msg, str) or not isinstance(answer, str):
             raise ValueError("Both question and answer must be strings.")
         self.history.append({"role": "user", "content": msg})
         self.history.append(
             {"role": "assistant", "metadata": "", "content": answer})
-        self.time = time()  # Update the time whenever a new record is added
+        # Update the time using time.time()
+        self.time = time.time()
 
     def get_history(self) -> List[dict]:
         # Check if more than 3 hours have passed
-        if time() - self.time > 10800:  # 3 hours in seconds
+        if time.time() - self.time > 10800:
             return []  # Return an empty list if more than 3 hours
         return list(self.history)
 
