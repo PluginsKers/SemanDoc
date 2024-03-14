@@ -24,6 +24,15 @@ class Tags:
         """Returns the list of tags."""
         return self.tags
 
+    def get_powerset(self) -> List[List[str]]:
+        result = [[]]
+        for i in range(len(self.tags)):
+            tag = self.tags[i]
+            new_subsets = [subset + [tag] for subset in result]
+            result.extend(new_subsets)
+
+        return result
+
 
 class Metadata:
     def __init__(
@@ -42,7 +51,15 @@ class Metadata:
         self.start_time = start_time if start_time is not None else time.time()
         self.tags = Tags(tags)
 
-    def to_dict(self):
+    def to_filter(self) -> Optional[dict]:
+        ret = {
+            "tags": self.tags.get_powerset()
+        }
+        if len(self.tags.get_tags()) == 0:
+            ret = None
+        return ret
+
+    def to_dict(self) -> dict:
         return {
             "ids": self.ids,
             "splitter": self.splitter,

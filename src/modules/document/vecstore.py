@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from langchain.vectorstores.faiss import FAISS
 from langchain.embeddings import HuggingFaceBgeEmbeddings
 
-from src.modules.document import Document
+from src.modules.document import Document, Metadata
 
 logger = logging.getLogger(__name__)
 
@@ -304,7 +304,7 @@ class VectorStore:
         self,
         query: str,
         k: int = 5,
-        filter: Optional[Dict[str, Any]] = None,
+        filter: Optional[Metadata] = None,
         fetch_k: int = 20,
         **kwargs: Any
     ) -> List[Document]:
@@ -321,29 +321,12 @@ class VectorStore:
         Returns:
         - List[Document]: List of retrieved documents.
         """
-
-        if filter is None:
-            filter = {}
-
-        def powerset(tags: List[str]) -> List[List[str]]:
-            result = [[]]
-            for i in range(len(tags)):
-                tag = tags[i]
-                new_subsets = [subset + [tag] for subset in result]
-                result.extend(new_subsets)
-
-            return result
-
-        if "tags" in filter and isinstance(filter["tags"], list):
-            tags = filter.pop("tags")  # Extract and remove original tags
-            permutations_of_tags = powerset(tags)  # Generate permutations
-            filter.update({"tags": permutations_of_tags})
-
         score_threshold = kwargs.get("score_threshold")
         if score_threshold is not None:
             kwargs.update({"score_threshold": score_threshold + 0.18})
+
         docs_and_scores = await self.faiss.asimilarity_search_with_score(
-            query, filter=filter, k=fetch_k, fetch_k=fetch_k*2, **kwargs
+            query, filter=filter.to_filter(), k=fetch_k, fetch_k=fetch_k*2, **kwargs
         )
 
         docs = [Document(doc.page_content, doc.metadata)

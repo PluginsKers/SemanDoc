@@ -1,5 +1,6 @@
 from typing import Optional, List, Dict, Any
 from src import get_vector_store, get_reranker
+from src.modules.document import Metadata
 
 
 async def query_documents(
@@ -21,7 +22,7 @@ async def query_documents(
         pass
 
     # Perform the document search using the global document store
-    initial_documents = await get_vector_store().query(query=query, k=k, filter=metadata, score_threshold=score_threshold)
+    initial_documents = await get_vector_store().query(query=query, k=k, filter=Metadata(**metadata), score_threshold=score_threshold)
 
     reranker = get_reranker()
     reranked_documents = reranker.rerank_documents(initial_documents, query)
