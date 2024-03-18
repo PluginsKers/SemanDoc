@@ -329,7 +329,7 @@ class VectorStore:
             kwargs.update({"score_threshold": score_threshold + 0.18})
 
         docs_and_scores = await self.faiss.asimilarity_search_with_score(
-            query, filter=filter, k=fetch_k, fetch_k=fetch_k*2, **kwargs
+            query, filter=filter, k=fetch_k, fetch_k=fetch_k*4, **kwargs
         )
 
         docs = [Document(doc.page_content, doc.metadata)

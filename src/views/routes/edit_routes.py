@@ -1,6 +1,8 @@
 import json
+import os
 from typing import List
-from flask import Blueprint
+from flask import request, Blueprint
+from werkzeug.utils import secure_filename
 from webargs import fields, validate
 from webargs.flaskparser import use_kwargs
 from src.modules.document import Document
@@ -31,7 +33,7 @@ remove_args = {
 add_args = {
     "data": fields.Str(required=True, validate=lambda val: len(val) > 5),
     "metadata": fields.Dict(required=True),
-    "preprocess": fields.Bool(missing=False)
+    "has_file": fields.Bool(required=False, missing=False)
 }
 
 
@@ -43,10 +45,10 @@ async def modify_document_route(target: int, type: str, data: str, metadata: dic
             "ids": modify_document_by_ids,
         }
 
-        result_doc = await modify_functions[type](target, Document(data, metadata).to_dict())
+        modify_result = await modify_functions[type](target, Document(data, metadata).to_dict())
 
-        if isinstance(result_doc, Document):
-            docs = [result_doc.to_dict()]
+        if isinstance(modify_result, Document):
+            docs = [modify_result.to_dict()]
             return Response("Documents modify successfully.", 200, data=docs)
 
         return Response("Unknown error occurred.", 400)
@@ -91,26 +93,39 @@ async def remove_document_route(target: list, type: str):
 
 @editor_blueprint.route("/add", methods=['POST'])
 @use_kwargs(add_args, location="json")
-async def add_document_route(data: str, metadata: dict, preprocess: bool):
+async def add_document_route(data: str, metadata: dict, has_file: bool):
     try:
-        if preprocess:
-            data = processor.replace_char_by_list(
-                data,
-                [
-                    (",", "，"),
-                    (": ", "："),
-                    ("!", "！"),
-                    ("?", "？"),
-                    ("\n", " ")
-                ]
-            )
+        # 当有文件上传且has_file为true时的处理逻辑
+        if has_file and 'file' in request.files:
+            file = request.files['file']
+            if file.filename == '':
+                return Response("No selected file", 400)
+            if file:
+                filename = secure_filename(file.filename)
+                save_path = os.path.join("./data/.temp/", filename)
+                file.save(save_path)
+                # 使用file_reader处理文件并获取文档列表
 
-        doc_obj = {"page_content": data, "metadata": metadata}
+                def file_reader():
+                    return []
+                documents = file_reader(save_path)  # 假设这个函数返回List[Document]
 
-        result = await add_document(doc_obj)
-        if isinstance(result, list):
-            added_docs = [doc.to_dict() for doc in result]
-            return Response("Documents added successfully.", 200, data=added_docs)
+                # 处理完成，返回给前端，包含confirm: true标记
+                # 假设你有方法将Document对象转换为dict
+                documents_dict = [doc.to_dict() for doc in documents]
+                return Response("测试成功", 200, {"data": documents_dict, "confirm": True})
+
+        # 当不是通过文件上传文档时的处理逻辑
+        if not data:
+            return Response("Data is required when no file is uploaded or has_file is false.", 400)
+
+        if not has_file:
+            # 仅当没有文件上传时，才进行文档的数据库写入操作
+            document_object = {"page_content": data, "metadata": metadata}
+            add_result = await add_document(document_object)
+            if isinstance(add_result, list):
+                added_document_dicts = [doc.to_dict() for doc in add_result]
+                return Response("Documents added successfully.", 200, data=added_document_dicts)
 
         return Response("Unknown error occurred.", 400)
 
