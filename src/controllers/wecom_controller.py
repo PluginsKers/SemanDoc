@@ -15,9 +15,9 @@ def extract_message_info(wecom_message_xml: str, **kwargs):
 
 async def query_and_rank_documents(dep_name: str, message_content: str):
     count = 1
-    score_threshold = 0.72
+    score_threshold = 0.6
     step = 0.04
-    max_steps = 7
+    max_steps = 10
     initial_documents = []
 
     metadata = Metadata()

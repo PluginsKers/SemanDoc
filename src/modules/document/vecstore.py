@@ -86,12 +86,11 @@ class VectorStore:
         rebuild_thread = threading.Thread(target=run_rebuild_index)
         rebuild_thread.start()
 
-        index_path = os.path.join(self.faiss_dir, "store")
         try:
             loop = asyncio.get_event_loop()
             with ThreadPoolExecutor() as executor:
-                await loop.run_in_executor(executor, self.faiss.save_local, index_path)
-            logger.info("Index successfully saved to %s", index_path)
+                await loop.run_in_executor(executor, self.faiss.save_local, self.faiss_dir)
+            logger.info("Index successfully saved to %s", self.faiss_dir)
 
         except Exception as e:
             logger.error("Error saving index: %s", e)
@@ -103,8 +102,7 @@ class VectorStore:
         Returns:
             FAISS: The loaded or newly created FAISS index.
         """
-        index_path = os.path.join(self.faiss_dir, "store")
-        if not os.path.exists(index_path):
+        if not os.path.exists(self.faiss_dir):
             logger.info("Local database not found, creating a new one.")
             os.makedirs(self.faiss_dir, exist_ok=True)
             index = FAISS.from_documents(
@@ -117,8 +115,8 @@ class VectorStore:
                 self.embedding,
             )
         else:
-            logger.info("Loaded index from %s", index_path)
-            index = FAISS.load_local(index_path, self.embedding)
+            logger.info("Loaded index from %s", self.faiss_dir)
+            index = FAISS.load_local(self.faiss_dir, self.embedding)
         return index
 
     def _get_next_ids(self) -> int:
@@ -326,7 +324,7 @@ class VectorStore:
 
         score_threshold = kwargs.get("score_threshold")
         if score_threshold is not None:
-            kwargs.update({"score_threshold": score_threshold + 0.18})
+            kwargs.update({"score_threshold": score_threshold + 0.12})
 
         docs_and_scores = await self.faiss.asimilarity_search_with_score(
             query, filter=filter, k=fetch_k, fetch_k=fetch_k*4, **kwargs
