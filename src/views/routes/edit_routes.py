@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from webargs import fields, validate
 from webargs.flaskparser import use_kwargs
 from src.modules.document import Document
-from src.modules.document.vecstore import VecstoreError
+from src.modules.document.vectorstore import VecstoreError
 from src.modules.response import Response
 from src.modules.string_processor import processor
 from src.controllers.edit_controller import (

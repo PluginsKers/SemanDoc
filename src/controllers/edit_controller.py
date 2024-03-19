@@ -1,6 +1,6 @@
 from typing import Any, Dict, Union, List, Tuple
 
-from src.modules.document.vecstore import VecstoreError
+from src.modules.document.vectorstore import VecstoreError
 from src.modules.document import Document
 from src.modules.database.document import Document as DocumentDB
 

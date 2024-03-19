@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 from src.modules.database import Database
 from src.modules.models import Reranker
-from src.modules.document.vecstore import VectorStore
+from src.modules.document.vectorstore import VectorStore
 from src.modules.models import LLMModel
 from src.modules.wecom import WeComApplication
 
