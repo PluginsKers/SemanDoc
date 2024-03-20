@@ -43,12 +43,12 @@ async def process_wecom_message(wecom_message_xml: str, **kwargs) -> None:
         sender_id, message_content, message_type = extract_message_info(
             wecom_message_xml, **kwargs)
 
-        print()
-
         if wecom_app.is_on_cooldown(sender_id) or message_type != "text":
             return
 
         wecom_app.set_cooldown(sender_id, wecom_app.COOLDOWN_TIME)
+
+        # feat: 使用工具方法判断用户意图，如果用户是“其他”那么继续执行，如果是其他分类，通过调整query_and_rank_documents获得对应的信息，构造不同的请求。
 
         # Process message content
         records = wecom_app.historys.get(sender_id)
@@ -58,7 +58,7 @@ async def process_wecom_message(wecom_message_xml: str, **kwargs) -> None:
 
         # Generate response based on the history and the current message
         history = build_history(records, reranked_documents)
-        response = get_llm_model().get_answer(message_content, history)
+        response = get_llm_model().get_response(message_content, history)
 
         if len(reranked_documents) < 1:
             on_ai = True

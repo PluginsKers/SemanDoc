@@ -19,10 +19,10 @@ class LLMModel:
 
     async def generate_async(self, prompt: str, history: list = []) -> str:
         loop = asyncio.get_event_loop()
-        response, history = await loop.run_in_executor(None, self.generate, prompt, history)
+        response, history = await loop.run_in_executor(None, self.chat, prompt, history)
         return response
 
-    def generate(self, prompt: str, history: list = []) -> str:
+    def chat(self, prompt: str, history: list = []) -> str:
         response, history = self.model.chat(
             self.tokenizer, prompt, history=history)
         return response
@@ -35,11 +35,46 @@ class LLMModel:
         :return: A prompt for generating a summary of the dialogue.
         """
         prompt = f"<指令>请用一句话概括聊天记录</指令>\n<聊天记录>{dialogue_content}</聊天记录>"
-        return self.generate(prompt)
+        return self.chat(prompt)
 
-    def get_answer(self, message: str, history: list = []):
+    def get_response_by_tools(self, message: str):
+        tools = [
+            {
+                "name": "classify",
+                "description": "分类用户需求",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "symbol": {
+                            "description": "分类用户的需求（位置、联系方式、其他）"
+                        }
+                    },
+                    "required": ['symbol']
+                }
+            },
+            {
+                "name": "query_lessons",
+                "description": "查询课表",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "classname": {
+                            "description": "需要查询课表的班级"
+                        }
+                    },
+                    "required": ['classname']
+                }
+            }
+        ]
+        system_info = {
+            "role": "system", "content": "Answer the following questions as best as you can. You have access to the following tools:", "tools": tools}
+        history = [system_info]
+        response, _ = self.model.chat(self.tokenizer, message, history)
+        return response
+
+    def get_response(self, message: str, history: list = []):
         prompt = f"<问题>{message}</问题>"
-        return self.generate(prompt, history)
+        return self.chat(prompt, history)
 
 
 class Reranker:
