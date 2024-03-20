@@ -30,7 +30,14 @@ class Tags:
             tag = self.tags[i]
             new_subsets = [subset + [tag] for subset in result]
             result.extend(new_subsets)
+        return result
 
+    def get_combinations(self) -> List[List[str]]:
+        result = []
+        for i in range(len(self.tags) - 1):  # Iterate until the second-to-last element
+            # Start from the next element to avoid duplicates
+            for j in range(i + 1, len(self.tags)):
+                result.append([self.tags[i], self.tags[j]])
         return result
 
 
@@ -51,9 +58,9 @@ class Metadata:
         self.start_time = start_time if start_time is not None else time.time()
         self.tags = Tags(tags)
 
-    def to_filter(self) -> Optional[dict]:
+    def to_filter(self, use_powerset: bool = True) -> Optional[dict]:
         ret = {
-            "tags": self.tags.get_powerset()
+            "tags": self.tags.get_powerset() if use_powerset else self.tags.get_combinations()
         }
         if len(self.tags.get_tags()) == 0:
             ret = None

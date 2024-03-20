@@ -13,25 +13,49 @@ def extract_message_info(wecom_message_xml: str, **kwargs):
     return wecom_message.get_from_user(), wecom_message.get_content(), wecom_message.get_msg_type()
 
 
-async def query_and_rank_documents(dep_name: str, message_content: str):
-    count = 1
-    score_threshold = 0.6
-    step = 0.04
-    max_steps = 10
-    initial_documents = []
+async def find_and_optimize_documents(dep_name: str, query_text: str, intent_type: str = None):
+    """
+    Finds and optimizes documents based on the query text and department name.
+    Allows specification of document type for more targeted searches.
+
+    Args:
+    dep_name (str): The department name to use as a search context.
+    query_text (str): The text query to search for relevant documents.
+    intent_type (str): Type of intent. Default is None.
+
+    Returns:
+    List[Document]: A list of optimized and relevant documents.
+    """
+    attempt_limit = 10
+    min_documents_required = 1
+    initial_score_threshold = 0.6
+    score_adjustment_step = 0.05
+    max_score_threshold = initial_score_threshold + \
+        (score_adjustment_step * attempt_limit)
 
     metadata = Metadata()
+
     metadata.tags.add_tag(dep_name)
-    metadata.tags.add_tag("通用")
+    metadata.tags.add_tag('通用')
 
-    while (count < max_steps and len(initial_documents) < 1):
-        score_threshold += step
-        initial_documents = await get_vector_store().query(query=message_content, filter=metadata, k=10, score_threshold=score_threshold)
-        count += 1
+    if intent_type is not None:
+        metadata.tags.add_tag(intent_type)
 
-    ranked_documents = get_reranker().rerank_documents(
-        initial_documents, message_content)
-    return ranked_documents
+    found_documents = []
+    current_attempt = 0
+    score_threshold = initial_score_threshold
+
+    # Dynamically adjust score threshold to find at least the minimum required documents
+    while current_attempt < attempt_limit and len(found_documents) < min_documents_required:
+        found_documents = await get_vector_store().query(query=query_text, filter=metadata, k=10, score_threshold=score_threshold, use_powerset=True if intent_type is None else False)
+        score_threshold = min(
+            score_threshold + score_adjustment_step, max_score_threshold)
+        current_attempt += 1
+
+    # Rerank the found documents based on additional criteria, if needed
+    optimized_documents = get_reranker().rerank_documents(found_documents, query_text)
+
+    return optimized_documents
 
 
 async def process_wecom_message(wecom_message_xml: str, **kwargs) -> None:
@@ -40,30 +64,49 @@ async def process_wecom_message(wecom_message_xml: str, **kwargs) -> None:
     try:
         wecom_app = get_wecom_application()
         kwargs.update({'msg_crypt': wecom_app.wxcpt})
-        sender_id, message_content, message_type = extract_message_info(
+        sender_id, user_msg_content, user_msg_type = extract_message_info(
             wecom_message_xml, **kwargs)
 
-        if wecom_app.is_on_cooldown(sender_id) or message_type != "text":
+        if wecom_app.is_on_cooldown(sender_id) or user_msg_type != "text":
             return
+
+        llm_model = get_llm_model()
 
         wecom_app.set_cooldown(sender_id, wecom_app.COOLDOWN_TIME)
 
-        # feat: 使用工具方法判断用户意图，如果用户是“其他”那么继续执行，如果是其他分类，通过调整query_and_rank_documents获得对应的信息，构造不同的请求。
+        _documents = []
+
+        predicted_intent = llm_model.get_response_by_tools(user_msg_content)
+
+        _params = {"dep_name": wecom_app.get_dep_name(
+            sender_id), "query_text": user_msg_content}
+
+        if isinstance(predicted_intent, dict):
+            if predicted_intent.get('name') == 'classify':
+                parameters = predicted_intent.get('parameters')
+                if isinstance(parameters, dict):
+                    if parameters.get('symbol') == '问路':
+                        _params.update({"intent_type": "位置信息"})
+                    elif parameters.get('symbol') == '联系方式':
+                        _params.update({"intent_type": "联系方式"})
+                    else:
+                        pass
+
+        _documents = await find_and_optimize_documents(**_params)
 
         # Process message content
-        records = wecom_app.historys.get(sender_id)
-        # history_summary = get_llm_model().get_summarize(records.get_raw_history(
-        # )) if records and isinstance(records, HistoryRecords) else None
-        reranked_documents = await query_and_rank_documents(wecom_app.get_dep_name(sender_id), message_content)
+        history_record = wecom_app.historys.get(sender_id)
+        # history_summary = llm_model.get_summarize(history_record.get_raw_history(
+        # )) if history_record and isinstance(history_record, HistoryRecords) else None
 
         # Generate response based on the history and the current message
-        history = build_history(records, reranked_documents)
-        response = get_llm_model().get_response(message_content, history)
+        history = build_history(history_record, _documents)
+        response = llm_model.get_response(user_msg_content, history)
 
-        if len(reranked_documents) < 1:
+        if len(_documents) < 1:
             on_ai = True
 
-        await wecom_app.send_message_async(sender_id, response, message_content, on_ai)
+        await wecom_app.send_message_async(sender_id, response, user_msg_content, on_ai)
     except Exception as e:
         logger.exception(e)
         if sender_id:
@@ -72,7 +115,6 @@ async def process_wecom_message(wecom_message_xml: str, **kwargs) -> None:
 
 def build_history(records, reranked_documents: List[Document]):
     document_texts = "".join(doc.page_content for doc in reranked_documents)
-    print("查询到信息数量: ", len(reranked_documents), document_texts)
     system_prompt = "<指令>根据已知信息，简洁和专业的来回答问题。如果无法从中得到答案，请说 “根据已知信息无法回答该问题”，如果未查询到有关信息，请说 “未查询到有关信息”。不允许在答案中添加编造成分，答案请使用中文。 </指令>\n"
     knowledge_prompt = f"<已知信息>{document_texts}</已知信息>"
 

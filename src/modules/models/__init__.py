@@ -1,7 +1,7 @@
 import torch
 import asyncio
 
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForSequenceClassification
 
 from src.modules.document import Document
@@ -37,7 +37,7 @@ class LLMModel:
         prompt = f"<指令>请用一句话概括聊天记录</指令>\n<聊天记录>{dialogue_content}</聊天记录>"
         return self.chat(prompt)
 
-    def get_response_by_tools(self, message: str):
+    def get_response_by_tools(self, message: str) -> Union[str, dict]:
         tools = [
             {
                 "name": "classify",
@@ -46,7 +46,7 @@ class LLMModel:
                     "type": "object",
                     "properties": {
                         "symbol": {
-                            "description": "分类用户的需求（位置、联系方式、其他）"
+                            "description": "分类用户的需求（问路、联系方式、其他）"
                         }
                     },
                     "required": ['symbol']
@@ -69,7 +69,7 @@ class LLMModel:
         system_info = {
             "role": "system", "content": "Answer the following questions as best as you can. You have access to the following tools:", "tools": tools}
         history = [system_info]
-        response, _ = self.model.chat(self.tokenizer, message, history)
+        response = self.chat(message, history)
         return response
 
     def get_response(self, message: str, history: list = []):

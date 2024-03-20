@@ -22,7 +22,7 @@ async def query_documents(
         pass
 
     # Perform the document search using the global document store
-    initial_documents = await get_vector_store().query(query=query, k=k, filter=Metadata(**metadata), score_threshold=score_threshold)
+    initial_documents = await get_vector_store().query(query=query, k=k, filter=Metadata(**metadata), score_threshold=score_threshold, use_powerset=True)
 
     reranker = get_reranker()
     reranked_documents = reranker.rerank_documents(initial_documents, query)

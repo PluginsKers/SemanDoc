@@ -320,7 +320,10 @@ class VectorStore:
         - List[Document]: List of retrieved documents.
         """
         if filter is not None:
-            filter = filter.to_filter()
+            use_powerset = kwargs.get("use_powerset")
+            if use_powerset is None:
+                use_powerset = False
+            filter = filter.to_filter(use_powerset)
 
         score_threshold = kwargs.get("score_threshold")
         if score_threshold is not None:
