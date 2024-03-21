@@ -1,5 +1,5 @@
 <center>
-<img width="50%" style="float:left" src="./assets/KnowledgeBase.png" />
+<img width="50%" src="./assets/KnowledgeBase.png" />
 <h3 style="font-size:36px;">📃知识库管理系统</h3>
 </center>
 
