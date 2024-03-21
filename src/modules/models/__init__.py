@@ -4,6 +4,7 @@ import asyncio
 from typing import List, Tuple, Union
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForSequenceClassification
 
+from src.config import Config as cfg
 from src.modules.document import Document
 
 
@@ -27,53 +28,16 @@ class LLMModel:
             self.tokenizer, prompt, history=history)
         return response
 
-    def get_summarize(self, dialogue_content: str):
-        """
-        Generates a prompt for summarizing dialogue content.
-
-        :param dialogue_content: The text content of a dialogue.
-        :return: A prompt for generating a summary of the dialogue.
-        """
-        prompt = f"<指令>请用一句话概括聊天记录</指令>\n<聊天记录>{dialogue_content}</聊天记录>"
-        return self.chat(prompt)
-
     def get_response_by_tools(self, message: str) -> Union[str, dict]:
-        tools = [
-            {
-                "name": "classify",
-                "description": "分类用户需求",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "symbol": {
-                            "description": "分类用户的需求（问路、联系方式、其他）"
-                        }
-                    },
-                    "required": ['symbol']
-                }
-            },
-            {
-                "name": "query_lessons",
-                "description": "查询课表",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "classname": {
-                            "description": "需要查询课表的班级"
-                        }
-                    },
-                    "required": ['classname']
-                }
-            }
-        ]
+        tools = cfg.GLM_TOOLS
         system_info = {
-            "role": "system", "content": "Answer the following questions as best as you can. You have access to the following tools:", "tools": tools}
+            "role": "system", "content": cfg.GLM_TOOLS_PROMPT, "tools": tools}
         history = [system_info]
         response = self.chat(message, history)
         return response
 
     def get_response(self, message: str, history: list = []):
-        prompt = f"<问题>{message}</问题>"
+        prompt = cfg.LLM_CHAT_PROMPT.format(message)
         return self.chat(prompt, history)
 
 

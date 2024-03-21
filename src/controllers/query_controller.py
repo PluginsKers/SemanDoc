@@ -1,4 +1,6 @@
 from typing import Optional, List, Dict, Any
+
+from src.config import Config as cfg
 from src import get_vector_store, get_reranker, get_llm_model
 from src.modules.document import Document, Metadata
 
@@ -89,12 +91,10 @@ async def chat_with_kb(message: str, dep_name: str = None) -> str:
 
 def build_history(reranked_documents: List[Document]):
     document_texts = "".join(doc.page_content for doc in reranked_documents)
-    system_prompt = "<指令>根据已知信息，简洁和专业的来回答问题。如果无法从中得到答案，请说 “根据已知信息无法回答该问题”，如果未查询到有关信息，请说 “未查询到有关信息”。不允许在答案中添加编造成分，答案请使用中文。 </指令>\n"
-    knowledge_prompt = f"<已知信息>{document_texts}</已知信息>"
+    system_prompt = cfg.LLM_SYSTEM_PROMPT.format(document_texts)
 
     if len(reranked_documents) < 1:
-        knowledge_prompt = f"<已知信息>未查询到有关信息</已知信息>"
-    history = [{"role": "system",
-                "content": system_prompt + knowledge_prompt}]
+        cfg.LLM_SYSTEM_PROMPT.format(cfg.LLM_SYSTEM_PROMPT_FILLNON)
+    _history = [{"role": "system", "content": system_prompt}]
 
-    return history
+    return _history

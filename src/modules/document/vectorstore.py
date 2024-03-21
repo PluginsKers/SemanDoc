@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from langchain.vectorstores.faiss import FAISS
 from langchain.embeddings import HuggingFaceBgeEmbeddings
 
+from src.config import Config as cfg
 from src.modules.document import Document, Metadata
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,7 @@ class VectorStore:
             model_name=embedding_model_name,
             model_kwargs={"device": "cuda:0"},
             encode_kwargs={"normalize_embeddings": True},
-            query_instruction="为这个句子生成表示以用于检索相关文章：",
+            query_instruction=cfg.EMBEDDIN_PROMPT,
         )
         self.faiss: Optional[FAISS] = self._load_or_create_index()
 

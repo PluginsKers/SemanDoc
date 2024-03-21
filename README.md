@@ -52,12 +52,15 @@ $ pip install -r requirements.txt
 ```shell
 $ git lfs install
 $ git clone https://huggingface.co/THUDM/chatglm3-6b
-$ git clone https://huggingface.co/BAAI/bge-large-zh
+$ git clone https://huggingface.co/BAAI/bge-m3
+$ git clone https://huggingface.co/BAAI/bge-reranker-large
 ```
 
 #### 3.初始化知识库和配置文件
 
-将项目根下的 **.env.template** 改名为 **.env** 并且按照要求完善配置信息。
+将项目 src/ 下的 **config.py.template** 改名为 **config.py** 并且按照要求完善配置信息。
+
+注意：本项目只有这一个配置文件。
 
 #### 4.启动项目程序
 

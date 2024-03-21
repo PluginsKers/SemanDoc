@@ -1,12 +1,13 @@
-from src.utils.wxcrypt.WXBizMsgCrypt3 import WXBizMsgCrypt
+from collections import deque
 import time
 from typing import Dict, List
 import logging
 import requests
 import threading
 
-from collections import deque
+from src.config import Config as cfg
 
+from src.utils.wxcrypt.WXBizMsgCrypt3 import WXBizMsgCrypt
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,7 @@ class WeComApplication:
         except Exception as e:
             logger.exception(
                 "Error updating access token.")
-            
+
         try:
             self.set_cooldown(user_id, WeComApplication.COOLDOWN_TIME)
         except Exception as e:
@@ -118,7 +119,7 @@ class WeComApplication:
             send_url = f"{self.SEND_MESSAGE_URL}?access_token={self.access_token}"
             send_message = content
             if on_ai:
-                send_message += "\n注意：未检索到相关信息，内容由AI生成，可能不准确。"
+                send_message += "\n" + cfg.GEN_AI_TIP
             data = {
                 "touser": user_id,
                 "msgtype": "text",
@@ -162,7 +163,7 @@ class WeComApplication:
         except Exception as e:
             logger.exception(
                 "Error updating access token.")
-        
+
         response = requests.get(self.USER_INFO_URL, params={
             'access_token': self.access_token,
             'userid': userid

@@ -53,7 +53,7 @@ async def query_route(query: str, k: int, filter: dict, score_threshold: float):
 async def chat_route(message: str, dep_name: str):
     try:
         _ret = await chat_with_kb(message, dep_name)
-        return Response("Respones successful.", 200, data=_ret)
+        return Response("Respones successful.", 200, data={"response": _ret})
     except ValidationError as error:
         return Response(f"Parameter error: {error.messages}", 400)
     except Exception as error:

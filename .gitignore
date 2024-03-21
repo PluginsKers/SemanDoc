@@ -17,3 +17,5 @@ venv/
 
 # 忽略log目录下的所有文件
 log
+
+src/config.py

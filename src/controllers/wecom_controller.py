@@ -1,5 +1,6 @@
 import logging
 from typing import List
+from src.config import Config as cfg
 from src import get_wecom_application, get_llm_model
 from src.modules.document import Document
 from src.modules.wecom import HistoryRecords
@@ -53,8 +54,6 @@ async def process_wecom_message(wecom_message_xml: str, **kwargs) -> None:
 
         # Process message content
         history_record = wecom_app.historys.get(sender_id)
-        # history_summary = _model.get_summarize(history_record.get_raw_history(
-        # )) if history_record and isinstance(history_record, HistoryRecords) else None
 
         # Generate response based on the history and the current message
         history = build_history(history_record, _documents)
@@ -67,19 +66,17 @@ async def process_wecom_message(wecom_message_xml: str, **kwargs) -> None:
     except Exception as e:
         logger.exception(e)
         if sender_id:
-            await wecom_app.send_message_async(sender_id, "处理信息时出现问题，请稍后重试。")
+            await wecom_app.send_message_async(sender_id, cfg.WECOM_APP_ERROR_MESSAGE)
 
 
 def build_history(records, reranked_documents: List[Document]):
     document_texts = "".join(doc.page_content for doc in reranked_documents)
-    system_prompt = "<指令>根据已知信息，简洁和专业的来回答问题。如果无法从中得到答案，请说 “根据已知信息无法回答该问题”，如果未查询到有关信息，请说 “未查询到有关信息”。不允许在答案中添加编造成分，答案请使用中文。 </指令>\n"
-    knowledge_prompt = f"<已知信息>{document_texts}</已知信息>"
+    system_prompt = cfg.LLM_SYSTEM_PROMPT.format(document_texts)
 
     if len(reranked_documents) < 1:
-        knowledge_prompt = f"<已知信息>未查询到有关信息</已知信息>"
-    history = [{"role": "system",
-                "content": system_prompt + knowledge_prompt}]
+        cfg.LLM_SYSTEM_PROMPT.format(cfg.LLM_SYSTEM_PROMPT_FILLNON)
+    _history = [{"role": "system", "content": system_prompt}]
 
     if records and isinstance(records, HistoryRecords):
-        history.extend(records.get_history())
-    return history
+        _history.extend(records.get_history())
+    return _history

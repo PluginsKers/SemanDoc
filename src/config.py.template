@@ -1,0 +1,60 @@
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter(
+    '[%(levelname)s] %(asctime)s - %(name)s - %(message)s')
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+
+class Config:
+    # 基础配置
+    MODEL_PATH = "BAAI/bge-m3"  # 配置你的embedding模型地址
+    LLM_MODEL_PATH = "THUDM/chatglm3-6b"  # 配置大语言模型路径
+    RERANKER_MODEL_PATH = "BAAI/bge-reranker-large"  # 配置重排序模型路径
+
+    DB_PATH = "./data/db/sql.db"  # 配置进行数据备份和记录用户信息的本地数据库文件，默认：./data/db/sql.db
+    INDEX_PATH = "./data/store"  # 配置你向量文件存储路径，默认：./data/store
+
+    # 企业微信相关配置项，留空默认不开始该部分
+    # AGENT_ID= # 企业微信，应用的ID
+    # TOKEN= # 企业微信，应用的密钥
+    # ENCODING_AES_KEY= # 企业微信，应用的解密口令
+    # CORP_ID= # 企业ID
+    # CORP_SECRET= # 企业密钥
+
+    # 客制化相关配置项
+    WECOM_APP_ERROR_MESSAGE = "处理信息时出现问题，请稍后重试。"
+
+    EMBEDDIN_PROMPT = "为这个句子生成表示以用于检索相关文章："
+
+    GEN_AI_TIP = "注意：未检索到相关信息，内容由AI生成，可能不准确。"
+    RESPONSE_PROMPT = "注意：内容由AI生成，可能不准确。"
+
+    GLM_TOOLS = [
+        {
+            "name": "classify",
+                    "description": "分类用户需求",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {
+                                "description": "分类用户的需求（问路、联系方式、其他）"
+                            }
+                        },
+                        "required": ['symbol']
+                    }
+        }
+    ]
+
+    GLM_TOOLS_PROMPT = "Answer the following questions as best as you can. You have access to the following tools:"
+
+    LLM_CHAT_PROMPT = "<问题>{}</问题>"
+
+    LLM_SYSTEM_PROMPT = "<指令>根据已知信息，简洁和专业的来回答问题。如果无法从中得到答案，请说 “根据已知信息无法回答该问题”，如果未查询到有关信息，请说 “未查询到有关信息”。不允许在答案中添加编造成分，答案请使用中文。 </指令>\n<已知信息>{}</已知信息>"
+    # 该信息为检索不到文档时填充至 LLM_SYSTEM_PROMPT 的已知信息
+    LLM_SYSTEM_PROMPT_FILLNON = "未查询到有关信息"
