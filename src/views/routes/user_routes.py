@@ -18,8 +18,8 @@ create_user_args = {
 @user_blueprint.route('/create', methods=['GET'])
 @use_kwargs(create_user_args, location="query")
 def create_user(username, password, nickname):
-    result, msg = create_user(username, password, nickname)
-    if result:
+    ret, msg = create_user(username, password, nickname)
+    if ret:
         return Response(msg, 200)
     else:
         return Response(msg, 400)

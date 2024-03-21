@@ -5,7 +5,7 @@ from webargs import fields, ValidationError
 from webargs.flaskparser import use_kwargs
 
 from src.modules.response import Response
-from src.controllers.query_controller import query_documents
+from src.controllers.query_controller import get_documents, chat_with_kb
 
 query_blueprint = Blueprint("query", __name__)
 
@@ -29,14 +29,31 @@ query_args = {
     "score_threshold": fields.Float(missing=1, allow_none=True),
 }
 
+chat_args = {
+    "message": fields.Str(required=True, validate=lambda val: len(val) > 0),
+    "dep_name": fields.Str(missing=None, allow_none=True),  # Default is None
+}
+
 
 @query_blueprint.route("/", methods=['POST'])
 @use_kwargs(query_args, location="json")
 async def query_route(query: str, k: int, filter: dict, score_threshold: float):
     try:
-        results = await query_documents(query, k, filter, score_threshold)
-        return Response("Query successful.", 200, data=results)
+        _rets = await get_documents(query, k, filter, score_threshold)
+        return Response("Query successful.", 200, data=_rets)
 
+    except ValidationError as error:
+        return Response(f"Parameter error: {error.messages}", 400)
+    except Exception as error:
+        return Response(f"Internal server error: {error}", 500)
+
+
+@query_blueprint.route("/chat", methods=['POST'])
+@use_kwargs(chat_args, location="json")
+async def chat_route(message: str, dep_name: str):
+    try:
+        _ret = await chat_with_kb(message, dep_name)
+        return Response("Respones successful.", 200, data=_ret)
     except ValidationError as error:
         return Response(f"Parameter error: {error.messages}", 400)
     except Exception as error:

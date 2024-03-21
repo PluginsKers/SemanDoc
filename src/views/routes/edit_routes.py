@@ -45,10 +45,10 @@ async def modify_document_route(target: int, type: str, data: str, metadata: dic
             "ids": modify_document_by_ids,
         }
 
-        modify_result = await modify_functions[type](target, Document(data, metadata).to_dict())
+        _ret = await modify_functions[type](target, Document(data, metadata).to_dict())
 
-        if isinstance(modify_result, Document):
-            docs = [modify_result.to_dict()]
+        if isinstance(_ret, Document):
+            docs = [_ret.to_dict()]
             return Response("Documents modify successfully.", 200, data=docs)
 
         return Response("Unknown error occurred.", 400)
@@ -69,10 +69,10 @@ async def remove_document_route(target: list, type: str):
             "tags": delete_documents_by_tags,
         }
 
-        results = await delete_functions[type](target)
+        _rets = await delete_functions[type](target)
 
-        if isinstance(results, tuple):
-            n_removed, n_total = results
+        if isinstance(_rets, tuple):
+            n_removed, n_total = _rets
             return Response(
                 "Documents deleted successfully.",
                 200,
@@ -122,9 +122,9 @@ async def add_document_route(data: str, metadata: dict, has_file: bool):
         if not has_file:
             # 仅当没有文件上传时，才进行文档的数据库写入操作
             document_object = {"page_content": data, "metadata": metadata}
-            add_result = await add_document(document_object)
-            if isinstance(add_result, list):
-                added_document_dicts = [doc.to_dict() for doc in add_result]
+            _ret = await add_document(document_object)
+            if isinstance(_ret, list):
+                added_document_dicts = [doc.to_dict() for doc in _ret]
                 return Response("Documents added successfully.", 200, data=added_document_dicts)
 
         return Response("Unknown error occurred.", 400)
