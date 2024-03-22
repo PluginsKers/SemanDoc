@@ -40,7 +40,7 @@ async def find_and_optimize_documents(query: str, dep_name: str = None,  intent_
 
     # Dynamically adjust score threshold to find at least the minimum required documents
     while current_attempt < attempt_limit and len(found_documents) < min_documents_required:
-        found_documents = await get_vector_store().query(query=query, filter=metadata, k=10, score_threshold=score_threshold, use_powerset=True if intent_type is None else False)
+        found_documents = await get_vector_store().query(query=query, filter=metadata, k=10, score_threshold=score_threshold, powerset=True if intent_type is None else False)
         score_threshold = min(
             score_threshold + score_adjustment_step, max_score_threshold)
         current_attempt += 1
@@ -52,7 +52,7 @@ async def find_and_optimize_documents(query: str, dep_name: str = None,  intent_
 
 
 async def get_documents(
-    query_str: str, k: int = 5, metadata: Optional[Dict[str, Any]] = None, score_threshold: Optional[float] = 1
+    query_str: str, k: int = 5, **kwargs
 ) -> List[dict]:
     """
     Searches for documents based on the provided query.
@@ -60,17 +60,23 @@ async def get_documents(
     Args:
         query_str (str): The search query.
         k (int, optional): The number of results to retrieve. Defaults to 5.
-        metadata (Optional[Dict[str, Any]], optional): Additional metadata for
-        filtering. Defaults to None.
+        **kwargs: Arbitrary keyword arguments. Can include filter (Optional[Dict[str, Any]]),
+                  score_threshold (Optional[float]), and powerset (Optional[bool]).
 
     Returns:
         List[dict]: A list of dictionaries representing the search results.
     """
-    if score_threshold:
-        pass
+    # Example of accessing kwargs with defaults
+    filter = kwargs.get('filter', None)
+    if filter is not None:
+        kwargs.update('filter', Metadata(**filter))
 
     # Perform the document search using the global document store
-    initial_documents = await get_vector_store().query(query=query_str, k=k, filter=Metadata(**metadata), score_threshold=score_threshold, use_powerset=True)
+    initial_documents = await get_vector_store().query(
+        query=query_str,
+        k=k,
+        **kwargs  # This now includes filter, score_threshold and powerset, among potentially other parameters
+    )
 
     reranker = get_reranker()
     reranked_documents = reranker.rerank_documents(

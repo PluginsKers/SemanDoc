@@ -58,9 +58,9 @@ class Metadata:
         self.start_time = start_time if start_time is not None else time.time()
         self.tags = Tags(tags)
 
-    def to_filter(self, use_powerset: bool = True) -> Optional[dict]:
+    def to_filter(self, powerset: bool = True) -> Optional[dict]:
         ret = {
-            "tags": self.tags.get_powerset() if use_powerset else self.tags.get_combinations()
+            "tags": self.tags.get_powerset() if powerset else self.tags.get_combinations()
         }
         if len(self.tags.get_tags()) == 0:
             ret = None
