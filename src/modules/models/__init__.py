@@ -4,7 +4,7 @@ import asyncio
 from typing import List, Tuple, Union
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForSequenceClassification
 
-from src.config import Config as cfg
+from src.config import BaseConfig as cfg
 from src.modules.document import Document
 
 

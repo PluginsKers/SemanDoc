@@ -5,8 +5,9 @@ from flask import request, Blueprint
 from werkzeug.utils import secure_filename
 from webargs import fields, validate
 from webargs.flaskparser import use_kwargs
+
+from src.config import BaseConfig as cfg
 from src.modules.document import Document
-from src.modules.document.vectorstore import VecstoreError
 from src.modules.response import Response
 from src.modules.string_processor import processor
 from src.controllers.edit_controller import (
@@ -49,14 +50,12 @@ async def modify_document_route(target: int, type: str, data: str, metadata: dic
 
         if isinstance(_ret, Document):
             docs = [_ret.to_dict()]
-            return Response("Documents modify successfully.", 200, data=docs)
+            return Response(cfg.RESPONSE_DOCUMENT_MODIFY_SUCCESS, 200, data=docs)
 
-        return Response("Unknown error occurred.", 400)
+        return Response(cfg.RESPONSE_UNKNOWN_ERROR, 400)
 
-    except (json.JSONDecodeError, TypeError) as error:
-        return Response(f"Invalid input data: {error}", 400)
-    except VecstoreError as error:
-        return Response(f"VectorStore operation failed: {error}", 400)
+    except Exception as error:
+        return Response(cfg.RESPONSE_CATCH_ERROR.format(error), 400)
 
 
 @editor_blueprint.route("/remove", methods=['POST'])
@@ -64,17 +63,17 @@ async def modify_document_route(target: int, type: str, data: str, metadata: dic
 async def remove_document_route(target: list, type: str):
     try:
         # Use a dictionary for type mapping for better readability
-        delete_functions = {
+        _fun = {
             "ids": delete_documents_by_ids,
             "tags": delete_documents_by_tags,
         }
 
-        _rets = await delete_functions[type](target)
+        _ret = await _fun[type](target)
 
-        if isinstance(_rets, tuple):
-            n_removed, n_total = _rets
+        if isinstance(_ret, tuple):
+            n_removed, n_total = _ret
             return Response(
-                "Documents deleted successfully.",
+                cfg.RESPONSE_DOCUMENT_REMOVE_SUCCESS,
                 200,
                 data={
                     "removed": n_removed,
@@ -83,12 +82,10 @@ async def remove_document_route(target: list, type: str):
                 },
             )
 
-        return Response("Unknown error occurred.", 400)
+        return Response(cfg.RESPONSE_UNKNOWN_ERROR, 400)
 
-    except (json.JSONDecodeError, TypeError) as error:
-        return Response(f"Invalid input data: {error}", 400)
-    except VecstoreError as error:
-        return Response(f"VectorStore operation failed: {error}", 400)
+    except Exception as error:
+        return Response(cfg.RESPONSE_CATCH_ERROR.format(error), 400)
 
 
 @editor_blueprint.route("/add", methods=['POST'])
@@ -120,16 +117,13 @@ async def add_document_route(data: str, metadata: dict, has_file: bool):
             return Response("Data is required when no file is uploaded or has_file is false.", 400)
 
         if not has_file:
-            # 仅当没有文件上传时，才进行文档的数据库写入操作
             document_object = {"page_content": data, "metadata": metadata}
             _ret = await add_document(document_object)
             if isinstance(_ret, list):
-                added_document_dicts = [doc.to_dict() for doc in _ret]
-                return Response("Documents added successfully.", 200, data=added_document_dicts)
+                _docs = [doc.to_dict() for doc in _ret]
+                return Response(cfg.RESPONSE_DOCUMENT_ADD_SUCCESS, 200, data=_docs)
 
-        return Response("Unknown error occurred.", 400)
+        return Response(cfg.RESPONSE_UNKNOWN_ERROR, 400)
 
-    except (json.JSONDecodeError, TypeError) as error:
-        return Response(f"Invalid input data: {error}", 400)
-    except VecstoreError as error:
-        return Response(f"VectorStore operation failed: {error}", 400)
+    except Exception as error:
+        return Response(cfg.RESPONSE_CATCH_ERROR.format(error), 400)

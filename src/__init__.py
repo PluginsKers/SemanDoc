@@ -3,7 +3,7 @@ import torch
 
 import logging
 
-from src.config import Config as cfg
+from src.config import BaseConfig as cfg
 from src.modules.database import Database
 from src.modules.models import Reranker
 from src.modules.document.vectorstore import VectorStore

@@ -19,3 +19,5 @@ venv/
 log
 
 src/config.py
+
+.vscode

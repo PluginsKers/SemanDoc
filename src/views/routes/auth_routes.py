@@ -2,6 +2,8 @@ from flask import Blueprint
 from webargs import fields
 from webargs.flaskparser import use_kwargs
 
+from src.config import BaseConfig as cfg
+
 from src.controllers.auth_controller import authenticate
 from src.modules.response import Response
 
@@ -18,6 +20,6 @@ login_args = {
 def login(username, password):
     token = authenticate(username, password)
     if token:
-        return Response("Successful login", 200, data={"token": token})
+        return Response(cfg.RESPONSE_LOGIN_SUCCESS, 200, data={"token": token})
     else:
-        return Response("Invalid credentials", 401)
+        return Response(cfg.RESPONSE_LOGIN_FAILED, 401)

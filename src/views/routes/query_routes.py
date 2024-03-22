@@ -39,8 +39,8 @@ chat_args = {
 @use_kwargs(query_args, location="json")
 async def query_route(query: str, k: int, filter: dict, score_threshold: float):
     try:
-        _rets = await get_documents(query, k, filter, score_threshold)
-        return Response("Query successful.", 200, data=_rets)
+        _ret = await get_documents(query, k, filter, score_threshold)
+        return Response("Query successful.", 200, data=_ret)
 
     except ValidationError as error:
         return Response(f"Parameter error: {error.messages}", 400)

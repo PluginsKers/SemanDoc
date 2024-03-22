@@ -5,7 +5,7 @@ import logging
 import requests
 import threading
 
-from src.config import Config as cfg
+from src.config import BaseConfig as cfg
 
 from src.utils.wxcrypt.WXBizMsgCrypt3 import WXBizMsgCrypt
 

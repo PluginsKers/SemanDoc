@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from langchain.vectorstores.faiss import FAISS
 from langchain.embeddings import HuggingFaceBgeEmbeddings
 
-from src.config import Config as cfg
+from src.config import BaseConfig as cfg
 from src.modules.document import Document, Metadata
 
 logger = logging.getLogger(__name__)

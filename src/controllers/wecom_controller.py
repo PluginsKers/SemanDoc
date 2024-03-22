@@ -1,6 +1,6 @@
 import logging
 from typing import List
-from src.config import Config as cfg
+from src.config import BaseConfig as cfg
 from src import get_wecom_application, get_llm_model
 from src.modules.document import Document
 from src.modules.wecom import HistoryRecords

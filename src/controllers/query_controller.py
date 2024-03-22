@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict, Any
 
-from src.config import Config as cfg
+from src.config import BaseConfig as cfg
 from src import get_vector_store, get_reranker, get_llm_model
 from src.modules.document import Document, Metadata
 

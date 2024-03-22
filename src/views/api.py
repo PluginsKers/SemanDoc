@@ -5,6 +5,8 @@ from src.utils.security import verify_jwt_token
 
 from src.modules.response import Response
 
+from src.config import BaseConfig as cfg
+
 from src.views.routes.edit_routes import editor_blueprint
 from src.views.routes.query_routes import query_blueprint
 from src.views.routes.wecom_routes import wecom_blueprint
@@ -19,11 +21,11 @@ def token_required(f):
     def decorated_function(*args, **kwargs):
         token = request.headers.get('Authorization')
         if not token:
-            return Response("Token is missing!", 403)
+            return Response(cfg.RESPONSE_LOGIN_INVALID_CREDENTIALS, 403)
 
         token = token.replace('Bearer ', '', 1)
         if not verify_jwt_token(token):
-            return Response("Token is invalid or has expired!", 401)
+            return Response(cfg.RESPONSE_LOGIN_INVALID_CREDENTIALS, 401)
 
         return f(*args, **kwargs)
 

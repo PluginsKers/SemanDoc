@@ -2,6 +2,9 @@ import asyncio
 import threading
 from flask import Blueprint, request
 from webargs import fields, flaskparser
+
+from src.config import BaseConfig as cfg
+
 from src.modules.response import Response
 from src.controllers.wecom_controller import process_wecom_message
 
@@ -16,11 +19,15 @@ wecom_args = {
 
 @wecom_blueprint.route("/", methods=['POST'])
 def wecom_route():
-    parsed_args = flaskparser.parser.parse(
-        wecom_args, request, location="querystring")
-    raw_xml_data = request.data.decode('utf-8')
+    try:
+        parsed_args = flaskparser.parser.parse(
+            wecom_args, request, location="querystring")
+        raw_xml_data = request.data.decode('utf-8')
 
-    threading.Thread(target=lambda: asyncio.run(
-        process_wecom_message(raw_xml_data, **parsed_args))).start()
+        threading.Thread(target=lambda: asyncio.run(
+            process_wecom_message(raw_xml_data, **parsed_args))).start()
 
-    return Response("success", 200)
+        return Response(cfg.RESPONSE_WECOM_DEFAULT, 200)
+
+    except Exception as error:
+        return Response(cfg.RESPONSE_CATCH_ERROR.format(error), 400)

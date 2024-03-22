@@ -58,3 +58,14 @@ class Config:
     LLM_SYSTEM_PROMPT = "<指令>根据已知信息，简洁和专业的来回答问题。如果无法从中得到答案，请说 “根据已知信息无法回答该问题”，如果未查询到有关信息，请说 “未查询到有关信息”。不允许在答案中添加编造成分，答案请使用中文。 </指令>\n<已知信息>{}</已知信息>"
     # 该信息为检索不到文档时填充至 LLM_SYSTEM_PROMPT 的已知信息
     LLM_SYSTEM_PROMPT_FILLNON = "未查询到有关信息"
+
+    # 接口返回部分配置项
+    RESPONSE_DOCUMENT_MODIFY_SUCCESS = "文档修改成功"
+    RESPONSE_DOCUMENT_REMOVE_SUCCESS = "文档删除成功"
+    RESPONSE_DOCUMENT_ADD_SUCCESS = "文档添加成功"
+    RESPONSE_WECOM_DEFAULT = "请求成功"  # 该信息无必要不修改，仅在启用企业微信功能下生效
+    RESPONSE_LOGIN_SUCCESS = "登录成功"
+    RESPONSE_LOGIN_FAILED = "登录失败"
+    RESPONSE_LOGIN_INVALID_CREDENTIALS = "无效的凭据"
+    RESPONSE_UNKNOWN_ERROR = "出现未知错误"
+    RESPONSE_CATCH_ERROR = "捕获到错误: {}"
