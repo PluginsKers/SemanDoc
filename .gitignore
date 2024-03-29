@@ -1,0 +1,23 @@
+# 忽略虚拟环境目录
+venv/
+
+# 忽略以.pyc结尾的编译文件
+*.pyc
+
+*.index
+
+/notebook
+
+/data
+
+.env
+
+# 忽略所有.pyo文件
+*.pyo
+
+# 忽略log目录下的所有文件
+log
+
+src/config.py
+
+.vscode
