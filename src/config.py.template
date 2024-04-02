@@ -2,6 +2,11 @@ class BaseConfig:
     # 基础配置
     IP = "0.0.0.0"
     PORT = 8080
+    # 免鉴权的地址
+    UNPROTECTED_ROUTES = [
+        "/api/v1/auth/login",
+        "/api/wecom/"
+    ]
 
     MODEL_PATH = "BAAI/bge-m3"  # 配置你的embedding模型地址
     LLM_MODEL_PATH = "THUDM/chatglm3-6b"  # 配置大语言模型路径
@@ -11,11 +16,11 @@ class BaseConfig:
     INDEX_PATH = "./data/store"  # 配置你向量文件存储路径，默认：./data/store
 
     # 企业微信相关配置项，留空默认不开始该部分
-    # AGENT_ID= # 企业微信，应用的ID
-    # TOKEN= # 企业微信，应用的密钥
-    # ENCODING_AES_KEY= # 企业微信，应用的解密口令
-    # CORP_ID= # 企业ID
-    # CORP_SECRET= # 企业密钥
+    # AGENT_ID="" # 企业微信，应用的ID
+    # TOKEN="" # 企业微信，应用的密钥
+    # ENCODING_AES_KEY="" # 企业微信，应用的解密口令
+    # CORP_ID="" # 企业ID
+    # CORP_SECRET="" # 企业密钥
 
     DEFAULT_TAGS = ['通用']
 
@@ -23,17 +28,17 @@ class BaseConfig:
 
     GLM_TOOLS = [
         {
-            "name": "classify",
-                    "description": "分类用户需求",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "symbol": {
-                                "description": "分类用户的需求（问路、联系方式、其他）"
-                            }
-                        },
-                        "required": ['symbol']
+            "name": "predict_intent",
+            "description": "分类用户需求",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "symbol": {
+                        "description": "分类用户的需求（问路、联系方式、其他）"
                     }
+                },
+                "required": ['symbol']
+            }
         }
     ]
 
@@ -47,8 +52,11 @@ class BaseConfig:
 
     # 返回内容配置项
     # 该部分不允许留空
+    RESPONSE_DOCUMENT_SEARCH_SUCCESS = "文档检索成功"
     RESPONSE_DOCUMENT_UPDATE_SUCCESS = "文档修改成功"
+    RESPONSE_DOCUMENT_UPDATE_FAIL = "文档修改失败"
     RESPONSE_DOCUMENT_REMOVE_SUCCESS = "文档删除成功"
+    RESPONSE_DOCUMENT_REMOVE_FAIL = "文档删除失败"
     RESPONSE_DOCUMENT_ADD_SUCCESS = "文档添加成功"
     RESPONSE_WECOM_DEFAULT = "请求成功"  # 该信息无必要不修改，仅在启用企业微信功能下生效
     RESPONSE_LOGIN_SUCCESS = "登录成功"

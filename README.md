@@ -1,9 +1,8 @@
 <img width="50%" src="./assets/SemanticDocEngine.png" />
 
-<h1>📃语义文档处理引擎</h1>
+<h1>⚡️语义文档处理引擎</h1>
 
 基于大语言模型实现，开源、可离线部署的轻量文档管理与检索文档方案。
-
 
 ### 目录
 
@@ -25,6 +24,8 @@
 💡 受到项目 [Langchain-Chatchat](https://github.com/chatchat-space/Langchain-Chatchat) 的启发，实现了一个碎片化信息高效检索的方案。
 
 项目使用 SQLite 作为轻量数据库进行文档和用户的管理，使用了 [facebookresearch/faiss](https://github.com/facebookresearch/faiss) 的高维度加速接口进行文件检索。本项目提供大量接口以供开发，部署轻便，现在支持企业微信应用的快速接入。
+
+![diagram](./assets/wecom-diagram-2024-03-31-174829.png)
 
 ### 快速上手
 
@@ -96,7 +97,6 @@ $ CUDA_VISIBLE_DEVICES=0 python main.py
 ### 使用案例
 
 [documents-dashboard-web](https://github.com/PluginsKers/documents-dashboard-web) 实现了高效轻量化的前端显示方案。
-
 
 ### 贡献指南
 

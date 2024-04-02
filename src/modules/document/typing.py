@@ -17,13 +17,13 @@ def uuid_to_sha256(uuid_str: str) -> str:
     Converts a UUID string into a SHA-256 hash.
 
     Args:
-        uuid_str (str): A valid UUID string.
+    - uuid_str (str): A valid UUID string.
 
     Returns:
-        str: A hexadecimal string representing the SHA-256 hash of the UUID.
+    Str: A hexadecimal string representing the SHA-256 hash of the UUID.
 
     Raises:
-        ValueError: If the input string is not a valid UUID.
+    ValueError: If the input string is not a valid UUID.
     """
     try:
         # This ensures the UUID is valid; if not, it raises a ValueError.
@@ -42,7 +42,7 @@ class Tags:
     A class to manage a collection of unique tags.
 
     Attributes:
-        tags (List[str]): A list of tags associated with an instance.
+    tags (List[str]): A list of tags associated with an instance.
     """
 
     def __init__(self, tags: Optional[List[str]] = None):
@@ -50,7 +50,7 @@ class Tags:
         Initializes the Tags object with an optional list of tags.
 
         Args:
-            tags (Optional[List[str]]): An initial list of tags. Defaults to None.
+        - tags (Optional[List[str]]): An initial list of tags. Defaults to None.
         """
         self.tags: Set[str] = set(tags) if tags is not None else set()
 
@@ -59,7 +59,7 @@ class Tags:
         Adds a new tag to the tags set if it's not already present.
 
         Args:
-            tag (str): The tag to add.
+        - tag (str): The tag to add.
         """
         self.tags.add(tag)
 
@@ -68,7 +68,7 @@ class Tags:
         Removes a tag from the tags set if it exists.
 
         Args:
-            tag (str): The tag to remove.
+        - tag (str): The tag to remove.
         """
         self.tags.discard(
             tag)  # Using discard to avoid KeyError if tag doesn't exist
@@ -78,10 +78,10 @@ class Tags:
         Checks if a tag is present in the tags set.
 
         Args:
-            tag (str): The tag to check for.
+        - tag (str): The tag to check for.
 
         Returns:
-            bool: True if the tag is present, False otherwise.
+        Bool: True if the tag is present, False otherwise.
         """
         return tag in self.tags
 
@@ -90,7 +90,7 @@ class Tags:
         Returns the list of tags.
 
         Returns:
-            List[str]: A list of tags.
+        List[str]: A list of tags.
         """
         return list(self.tags)
 
@@ -99,8 +99,8 @@ class Tags:
         Generates the powerset of the tags set.
 
         Returns:
-            List[List[str]]: A list of lists, where each sublist is a combination
-            of tags representing a subset of the powerset.
+        List[List[str]]: A list of lists, where each sublist is a combination
+        of tags representing a subset of the powerset.
         """
         # Converting the set to a list to support indexing
         tags_list = list(self.tags)
@@ -115,7 +115,7 @@ class Tags:
         Generates all unique combinations of two tags from the tags set.
 
         Returns:
-            List[List[str]]: A list of lists, where each sublist is a combination of two tags.
+        List[List[str]]: A list of lists, where each sublist is a combination of two tags.
         """
         tags_list = list(self.tags)
         result = []
@@ -130,12 +130,12 @@ class Metadata:
     Represents metadata associated with a document, including IDs, tags, and temporal information.
 
     Attributes:
-        ids (str): Unique identifier for the metadata, generated from a SHA-256 hash.
-        splitter (str): A string used to split or differentiate metadata, default is 'default'.
-        related (bool): Indicates if the metadata is related to another entity.
-        valid_time (int): Duration in seconds for which the metadata is considered valid.
-        start_time (int): Timestamp marking the start of the metadata's validity.
-        tags (Tags): A `Tags` object containing tags associated with the metadata.
+    - ids (str): Unique identifier for the metadata, generated from a SHA-256 hash.
+    - splitter (str): A string used to split or differentiate metadata, default is 'default'.
+    - related (bool): Indicates if the metadata is related to another entity.
+    - valid_time (int): Duration in seconds for which the metadata is considered valid.
+    - start_time (int): Timestamp marking the start of the metadata's validity.
+    - tags (Tags): A `Tags` object containing tags associated with the metadata.
     """
 
     def __init__(
@@ -169,10 +169,10 @@ class Metadata:
         Converts the metadata to a filter format, based on its tags.
 
         Args:
-            powerset (bool): If True, generates filters based on the powerset of tags; otherwise, uses tag combinations.
+        - powerset (bool): If True, generates filters based on the powerset of tags; otherwise, uses tag combinations.
 
         Returns:
-            Optional[Dict[str, Any]]: A dictionary representing the filter criteria, or None if no tags are defined.
+        Optional[Dict[str, Any]]: A dictionary representing the filter criteria, or None if no tags are defined.
         """
         tags_filter = self.tags.get_powerset() if powerset else self.tags.get_combinations()
         if not self.tags.get_tags():
@@ -184,7 +184,7 @@ class Metadata:
         Converts the metadata into a dictionary format.
 
         Returns:
-            Dict[str, Any]: A dictionary representation of the metadata.
+        Dict[str, Any]: A dictionary representation of the metadata.
         """
         return {
             "ids": self.ids,
@@ -201,8 +201,8 @@ class Document:
     Represents a document with content and associated metadata.
 
     Attributes:
-        page_content (str): The content of the document.
-        metadata (Metadata): The metadata associated with the document.
+    - page_content (str): The content of the document.
+    - metadata (Metadata): The metadata associated with the document.
     """
 
     def __init__(self, page_content: str, metadata: Union[Dict[str, Any], Metadata] = None):
@@ -219,7 +219,7 @@ class Document:
         Determines if the document is still valid based on its metadata's validity period.
 
         Returns:
-            bool: True if the document is valid, False otherwise.
+        bool: True if the document is valid, False otherwise.
         """
         current_time = time.time()
         # Handle the case where valid_time is indefinite (-1).
@@ -233,6 +233,6 @@ class Document:
         Converts the document into a dictionary format, including its content and metadata.
 
         Returns:
-            Dict[str, Any]: A dictionary representation of the document.
+        Dict[str, Any]: A dictionary representation of the document.
         """
         return {"page_content": self.page_content, "metadata": self.metadata.to_dict()}

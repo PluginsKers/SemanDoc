@@ -58,7 +58,7 @@ class Database:
         - args (tuple): The arguments to the SQL query.
 
         Returns:
-        int or None: The last row id from the query, or None if an error occurred.
+        Optional[int]: int or None: The last row id from the query, or None if an error occurred.
         """
         conn = self.get_connection()
         try:
@@ -79,7 +79,7 @@ class Database:
         - args (tuple): The arguments to the SQL query.
 
         Returns:
-        list or None: The query result set, or None if an error occurred.
+        Optional[list]: list or None: The query result set, or None if an error occurred.
         """
         conn = self.get_connection()
         try:
@@ -94,6 +94,9 @@ class Database:
         """
         Check for necessary tables and create them if they don't exist.
         """
+
+        # TODO: Add user permission level
+
         user_table_sql = """
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

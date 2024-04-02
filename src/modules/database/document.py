@@ -24,7 +24,7 @@ class Document(Database):
         - metadata: The metadata of the document.
 
         Returns:
-        True if the document was added, False if it was a duplicate.
+        bool: True if the document was added, False if it was a duplicate.
         """
         if not isinstance(page_content, str) or not isinstance(metadata, str):
             raise TypeError("Both page_content and metadata must be strings.")
@@ -49,7 +49,7 @@ class Document(Database):
         - id: The ID of the document to retrieve.
 
         Returns:
-        A dictionary containing the document data.
+        dict: A dictionary containing the document data.
         """
         if not isinstance(id, int):
             raise TypeError("ID must be an integer.")
@@ -74,7 +74,7 @@ class Document(Database):
         - id: The ID of the document to delete.
 
         Returns:
-        True if the document was deleted, False otherwise.
+        bool: True if the document was deleted, False otherwise.
         """
         if not isinstance(id, int):
             raise TypeError("ID must be an integer.")

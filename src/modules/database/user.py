@@ -24,7 +24,7 @@ class User(Database):
         - username: The username to check.
 
         Returns:
-        True if the user exists, False otherwise.
+        Bool: True if the user exists, False otherwise.
         """
         query = "SELECT 1 FROM users WHERE username = ?;"
         result = self.execute_read_query(query, (username,))
@@ -40,7 +40,7 @@ class User(Database):
         - nickname: The nickname of the new user.
 
         Returns
-        - A tuple of (bool, str) indicating success and a message.
+        Tuple[bool, str]: A tuple of (bool, str) indicating success and a message.
         """
         if self.user_exists(username):
             return False, "User already exists."
@@ -63,7 +63,7 @@ class User(Database):
         - username: The username of the user to retrieve.
 
         Returns
-        A dictionary of the user information or None if not found.
+        Optional[dict]: A dictionary of the user information or None if not found.
         """
         query = "SELECT id, username, nickname, password FROM users WHERE username = ?;"
         result = self.execute_read_query(query, (username,))
@@ -80,7 +80,7 @@ class User(Database):
         - username: The username of the user to delete.
 
         Returns
-        A tuple of (bool, str) indicating success and a message.
+        Tuple[bool, str]: A tuple of (bool, str) indicating success and a message.
         """
         if not self.user_exists(username):
             return False, "User does not exist."
