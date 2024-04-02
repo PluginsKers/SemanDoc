@@ -89,7 +89,7 @@ $ python main.py
 
 ```bash
 # 仅使用 cuda:0 GPU进行推理加速
-$ CUDA_VISIBLE_DEVICES=0 python main.py
+$ CUDA_VISIBLE_DEVICES=0 python run.py
 ```
 
 在实验中，使用ChatGLM3-6B模型、BGE-M3检索模型和BGE-reranker-large重排序模型时需要至少14GB的显存。采用量化版本时，显存需求降至10GB。若不部署大语言模型，所需显存进一步减少至1GB以下。
