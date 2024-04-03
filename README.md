@@ -70,7 +70,7 @@ $ git clone https://huggingface.co/BAAI/bge-reranker-large
 
 #### 3.初始化知识库和配置文件
 
-将项目 src/ 下的 `config.py.template` 改名为 `config.py` 并且按照要求完善配置信息。
+将项目根目录下的 `config.py.template` 改名为 `config.py` 并且按照要求完善配置信息。
 
 注意：本项目只有这一个配置文件。
 
@@ -80,7 +80,7 @@ $ git clone https://huggingface.co/BAAI/bge-reranker-large
 
 ```bash
 # 运行主程序
-$ python main.py
+$ python run.py
 ```
 
 #### 5.注意事项

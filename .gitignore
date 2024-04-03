@@ -16,7 +16,9 @@ venv/
 
 log
 
-src/config.py
+config.py
+
+__pycache__
 
 .*/
 
