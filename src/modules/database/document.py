@@ -1,5 +1,8 @@
 import logging
 import sqlite3
+from datetime import datetime
+from typing import Optional
+
 from src.modules.database.sqlite import Database
 
 logger = logging.getLogger(__name__)
@@ -15,31 +18,59 @@ class Document(Database):
         """
         super().__init__(db.db_file)
 
-    def add_document(self, page_content: str, metadata: str) -> bool:
+    def add_document(self, page_content: str, metadata: str, user_id: Optional[int] = None, desc: str = 'Document added.') -> bool:
         """
-        Adds a new document to the database. Returns True if successful, or False if the document is a duplicate.
-
+        Adds a new document to the database along with an initial document history record.
         Args:
         - page_content: The content of the document.
         - metadata: The metadata of the document.
-
+        - user_id: The ID of the user adding the document.
         Returns:
         bool: True if the document was added, False if it was a duplicate.
         """
-        if not isinstance(page_content, str) or not isinstance(metadata, str):
-            raise TypeError("Both page_content and metadata must be strings.")
+        if not all(isinstance(arg, str) for arg in [page_content, metadata]) or not isinstance(user_id, int):
+            raise TypeError(
+                "page_content and metadata must be strings, and user_id must be an integer.")
 
-        query = """INSERT INTO documents(page_content, metadata)
-                VALUES (?, ?);"""
+        document_query = "INSERT INTO documents(page_content, metadata) VALUES (?, ?);"
+        history_query = """INSERT INTO document_history(document_id, editor_id, edit_time, edit_description) 
+                           VALUES (?, ?, ?, ?);"""
         try:
-            self.execute_query(query, (page_content, metadata))
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            # Begin a transaction
+            cursor.execute("BEGIN;")
+
+            # Insert the document and get its ID
+            document_id = self.execute_query(
+                document_query, (page_content, metadata))
+            if document_id is None:
+                raise Exception("Failed to insert the document.")
+
+            # Get current time in the required format
+            edit_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            # Insert the initial history record
+            history_result = self.execute_query(
+                history_query, (document_id, user_id, edit_time, desc))
+            if history_result is None:
+                raise Exception("Failed to insert the document history.")
+
+            # Commit the transaction
+            conn.commit()
             return True
         except sqlite3.IntegrityError:
             logger.info("Duplicate document not added.")
             return False
         except Exception as e:
-            logger.error(f"Failed to add document: {e}")
-            raise
+            logger.error(f"Error adding document: {e}")
+            # Attempt to rollback in case of failure
+            try:
+                conn.rollback()
+            except Exception as rollback_error:
+                logger.error(
+                    f"Failed to rollback transaction: {rollback_error}")
+            return False
 
     def get_document(self, id: int) -> dict:
         """
@@ -66,12 +97,14 @@ class Document(Database):
             logger.error(f"Failed to get document with ID {id}: {e}")
             raise
 
-    def delete_document(self, id: int) -> bool:
+    def delete_document(self, id: str, user_id: Optional[int] = None, desc: str = 'Document deleted.') -> bool:
         """
-        Deletes a document from the database by its ID.
+        Deletes a document from the database by its ID and records the deletion in the document history.
 
         Args:
         - id: The ID of the document to delete.
+        - user_id: The ID of the user deleting the document.
+        - desc: A description of the delete operation.
 
         Returns:
         bool: True if the document was deleted, False otherwise.
@@ -79,10 +112,34 @@ class Document(Database):
         if not isinstance(id, int):
             raise TypeError("ID must be an integer.")
 
-        query = "DELETE FROM documents WHERE id = ?;"
+        history_query = """INSERT INTO document_history(document_id, editor_id, edit_time, edit_description) 
+                        VALUES (?, ?, ?, ?);"""
+        delete_query = "DELETE FROM documents WHERE id = ?;"
         try:
-            affected_rows = self.execute_query(query, (id,))
-            return affected_rows > 0
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            # Begin a transaction
+            cursor.execute("BEGIN;")
+
+            # Insert the delete history record
+            edit_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.execute_query(
+                history_query, (id, user_id, edit_time, desc))
+
+            # Delete the document
+            affected_rows = self.execute_query(delete_query, (id,))
+            if affected_rows == 0:
+                raise Exception("Failed to delete the document.")
+
+            # Commit the transaction
+            conn.commit()
+            return True
         except Exception as e:
-            logger.error(f"Failed to delete document with ID {id}: {e}")
-            raise
+            logger.error(f"Error deleting document: {e}")
+            # Attempt to rollback in case of failure
+            try:
+                conn.rollback()
+            except Exception as rollback_error:
+                logger.error(
+                    f"Failed to rollback transaction: {rollback_error}")
+            return False

@@ -24,13 +24,13 @@ class User(Database):
         - username: The username to check.
 
         Returns:
-        Bool: True if the user exists, False otherwise.
+        bool: True if the user exists, False otherwise.
         """
         query = "SELECT 1 FROM users WHERE username = ?;"
         result = self.execute_read_query(query, (username,))
         return len(result) > 0
 
-    def add_user(self, username: str, password: str, nickname: str) -> Tuple[bool, str]:
+    def add_user(self, username: str, password: str, nickname: str, role_id: int = 1) -> Tuple[bool, str]:
         """
         Adds a new user to the database with encrypted password.
 
@@ -38,6 +38,7 @@ class User(Database):
         - username: The username of the new user.
         - password: The password of the new user.
         - nickname: The nickname of the new user.
+        - role_id: The role_id of the new user.
 
         Returns
         Tuple[bool, str]: A tuple of (bool, str) indicating success and a message.
@@ -46,10 +47,11 @@ class User(Database):
             return False, "User already exists."
 
         encrypted_password = encrypt_password(password)
-        query = """INSERT INTO users(username, password, nickname)
-                   VALUES (?, ?, ?);"""
+        query = """INSERT INTO users(username, password, nickname, role_id)
+                   VALUES (?, ?, ?, ?);"""
         try:
-            self.execute_query(query, (username, encrypted_password, nickname))
+            self.execute_query(
+                query, (username, encrypted_password, nickname, role_id))
             return True, "User added successfully."
         except Exception as e:
             logger.error(f"Failed to add user: {e}")

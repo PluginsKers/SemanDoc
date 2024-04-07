@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 async def process_message(wecom_message_xml: str, **kwargs) -> None:
+    sender_id = None
     try:
         llm_model = app_manager.get_llm_model()
         wecom_app = app_manager.get_wecom_application()

@@ -96,7 +96,6 @@ def get_documents(
         # Search with a score threshold and custom filter
         documents = await get_documents(query="advanced search", score_threshold=0.5, filter={"tags": "news"})
     """
-
     if filter is not None:
         # Assuming Metadata is a class or method that processes the filter dict
         filter = Metadata(**filter)
@@ -120,9 +119,13 @@ def get_documents(
 
 def add_document(
     data: str,
-    metadata: Dict[str, Any]
+    metadata: Dict[str, Any],
+    **kwargs
 ) -> List[Document]:
     try:
+        if kwargs.get('user_id') is None:
+            raise ValueError("User ID is required for adding a document.")
+
         store = app_manager.get_vector_store()
         docDb = Docdb(app_manager.get_database_instance())
         page_content = data
@@ -138,11 +141,13 @@ def add_document(
             raise VectorStoreError(
                 "Failed to add document to the VectorStore.")
 
+        store.save_index()
+
         docDb.add_document(
             new_doc.page_content,
-            str(new_doc.metadata)
+            str(new_doc.metadata.to_dict()),
+            kwargs.get('user_id')
         )
-        store.save_index()
 
         logger.info("Document added successfully.")
 
@@ -153,10 +158,15 @@ def add_document(
 
 
 def delete_documents_by_ids(
-    ids_to_delete: List[str]
+    ids_to_delete: List[str],
+    **kwargs
 ) -> Union[Tuple[int, int], str]:
     try:
+        if kwargs.get('user_id') is None:
+            raise ValueError("User ID is required for adding a document.")
+
         store = app_manager.get_vector_store()
+        docDb = Docdb(app_manager.get_database_instance())
 
         ret = store.delete_documents_by_ids(ids_to_delete)
 
@@ -172,11 +182,15 @@ def delete_documents_by_ids(
 
 def update_document(
     ids: str,
-    data: dict[str, Any]
+    data: dict[str, Any],
+    **kwargs
 ) -> Optional[Document]:
     try:
+        if kwargs.get('user_id') is None:
+            raise ValueError("User ID is required for adding a document.")
+
         store = app_manager.get_vector_store()
-        doc_db = Docdb(app_manager.get_database_instance())
+        docDb = Docdb(app_manager.get_database_instance())
         ret = store.delete_documents_by_ids([ids])
         if isinstance(ret, tuple):
             n_removed, _ = ret
@@ -196,9 +210,11 @@ def update_document(
                 raise VectorStoreError(
                     "Failed to add document to the database.")
 
-            doc_db.add_document(
+            docDb.add_document(
                 new_doc.page_content,
-                str(new_doc.metadata)
+                str(new_doc.metadata),
+                kwargs.get('user_id'),
+                'Document updated.'
             )
             store.save_index()
 

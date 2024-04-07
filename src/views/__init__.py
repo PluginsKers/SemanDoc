@@ -10,5 +10,6 @@ def register_resources(api: Api):
                      '/api/v1/documents/<string:id>')
     api.add_resource(UserResource, '/api/v1/users',
                      '/api/v1/users/<string:id>')
-    api.add_resource(WecomResource, '/api/wecom')
+
+    api.add_resource(WecomResource, '/api/v1/wecom')
     api.add_resource(LoginResource, '/api/v1/auth/login')

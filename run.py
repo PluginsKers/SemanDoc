@@ -1,7 +1,7 @@
-from flask import Flask, request
+from flask import g, Flask, request
 from flask_cors import CORS
 from flask_restful import Api
-from src.config import BaseConfig
+from config import BaseConfig
 from src.utils.security import verify_jwt_token
 from src.views import register_resources
 
@@ -19,7 +19,11 @@ def create_app() -> Flask:
         if not token or not token.startswith('Bearer '):
             return {"message": BaseConfig.RESPONSE_LOGIN_INVALID_CREDENTIALS}, 403
         token = token.replace('Bearer ', '', 1)
-        if not verify_jwt_token(token):
+        user_id = verify_jwt_token(token)
+        if user_id:
+            g.user_id = user_id  # Store user ID in Flask's global g object
+            return
+        else:
             return {"message": BaseConfig.RESPONSE_LOGIN_INVALID_CREDENTIALS}, 401
     api = Api(app)
 

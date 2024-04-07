@@ -5,7 +5,7 @@ class BaseConfig:
     # 免鉴权的地址
     UNPROTECTED_ROUTES = [
         "/api/v1/auth/login",
-        "/api/wecom/"
+        "/api/v1/wecom/"
     ]
 
     MODEL_PATH = "BAAI/bge-m3"  # 配置你的embedding模型地址

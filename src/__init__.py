@@ -2,13 +2,24 @@
 import os
 import torch
 import logging
+from flask import g
+from functools import wraps
 from typing import Optional
 
-from src.config import BaseConfig
+from config import BaseConfig
 from src.modules.database import Database
 from src.modules.models import Reranker, LLMModel
 from src.modules.document.vectorstore import VectorStore
 from src.modules.wecom import WeComApplication
+
+
+def include_user_id(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if 'user_id' not in kwargs:
+            kwargs['user_id'] = g.user_id
+        return func(*args, **kwargs)
+    return wrapper
 
 
 class ApplicationManager(BaseConfig):

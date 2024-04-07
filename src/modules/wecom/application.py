@@ -5,7 +5,7 @@ import requests
 import threading
 from typing import Dict
 
-from src.config import BaseConfig as cfg
+from config import BaseConfig as cfg
 from src.modules.wecom import HistoryRecords
 from src.utils.wxcrypt.WXBizMsgCrypt3 import WXBizMsgCrypt
 

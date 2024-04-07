@@ -12,7 +12,7 @@ def authenticate(username: str, password: str) -> Optional[str]:
         return None
 
     if udata and check_password(udata['password'], password):
-        return generate_jwt_token(username)
+        return generate_jwt_token(udata['id'])
     return None
 
 
