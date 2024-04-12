@@ -31,8 +31,8 @@ def dependable_faiss_import(no_avx2: Optional[bool] = None) -> faiss:
     to load FAISS with no AVX2 optimization.
 
     Args:
-    - no_avx2: Load FAISS strictly with no AVX2 optimization
-    so that the vectorstore is portable and compatible with other devices.
+        no_avx2: Load FAISS strictly with no AVX2 optimization
+        so that the vectorstore is portable and compatible with other devices.
     """
     if no_avx2 is None and "FAISS_NO_AVX2" in os.environ:
         no_avx2 = bool(os.getenv("FAISS_NO_AVX2"))

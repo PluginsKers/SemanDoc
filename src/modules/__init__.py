@@ -1,7 +1,5 @@
-import json
 import logging
-from typing import List, Optional
-from flask import Response as FlaskResponse
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -15,11 +13,11 @@ class StringProcessor:
         Replace characters in the input string based on the given list of replacements.
 
         Args:
-        - input_str (str): The input string.
-        - replace_char (list): List of tuples containing pairs of characters to be replaced.
+            input_str (str): The input string.
+            replace_char (list): List of tuples containing pairs of characters to be replaced.
 
         Returns:
-        str: The modified input string after replacements.
+            str: The modified input string after replacements.
         """
         for pair in replace_char:
             input_str = input_str.replace(pair[0], pair[1])
@@ -30,10 +28,10 @@ class StringProcessor:
         Split the input string into sentences based on punctuation marks.
 
         Args:
-        - input_str (str): The input string.
+            input_str (str): The input string.
 
         Returns:
-        List[str]: A list of sentences extracted from the input string.
+            List[str]: A list of sentences extracted from the input string.
         """
         punctuation = ".!?。！？"
         sentences = []

@@ -14,7 +14,7 @@ class Document(Database):
         Initialize the Document class with a database connection.
 
         Args:
-        - db: A Database instance.
+            db: A Database instance.
         """
         super().__init__(db.db_file)
 
@@ -22,11 +22,11 @@ class Document(Database):
         """
         Adds a new document to the database along with an initial document history record.
         Args:
-        - page_content: The content of the document.
-        - metadata: The metadata of the document.
-        - user_id: The ID of the user adding the document.
+            page_content: The content of the document.
+            metadata: The metadata of the document.
+            user_id: The ID of the user adding the document.
         Returns:
-        bool: True if the document was added, False if it was a duplicate.
+            bool: True if the document was added, False if it was a duplicate.
         """
         if not all(isinstance(arg, str) for arg in [page_content, metadata]) or not isinstance(user_id, int):
             raise TypeError(
@@ -77,10 +77,10 @@ class Document(Database):
         Retrieves a document from the database by its ID.
 
         Args:
-        - id: The ID of the document to retrieve.
+            id: The ID of the document to retrieve.
 
         Returns:
-        dict: A dictionary containing the document data.
+            dict: A dictionary containing the document data.
         """
         if not isinstance(id, int):
             raise TypeError("ID must be an integer.")
@@ -102,12 +102,12 @@ class Document(Database):
         Deletes a document from the database by its ID and records the deletion in the document history.
 
         Args:
-        - id: The ID of the document to delete.
-        - user_id: The ID of the user deleting the document.
-        - desc: A description of the delete operation.
+            id: The ID of the document to delete.
+            user_id: The ID of the user deleting the document.
+            desc: A description of the delete operation.
 
         Returns:
-        bool: True if the document was deleted, False otherwise.
+            bool: True if the document was deleted, False otherwise.
         """
         if not isinstance(id, int):
             raise TypeError("ID must be an integer.")

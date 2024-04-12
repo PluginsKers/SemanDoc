@@ -15,7 +15,7 @@ class Database:
         Initialize the database class with the database file path.
 
         Args:
-        - db (str): Path to the SQLite database file.
+            db (str): Path to the SQLite database file.
         """
         self.db_file = db
         self.thread_conn = threading.local()
@@ -25,7 +25,7 @@ class Database:
         Get or create a thread-local database connection.
 
         Returns:
-        sqlite3.Connection: The SQLite database connection.
+            sqlite3.Connection: The SQLite database connection.
         """
         if not hasattr(self.thread_conn, "conn"):
             self.create_connection()
@@ -51,16 +51,19 @@ class Database:
             self.thread_conn.conn.close()
             delattr(self.thread_conn, "conn")
 
-    def execute_query(self, query: str, args: tuple = ()) -> Optional[int]:
+    def execute_query(self, query: str, args: tuple = ()) -> int:
         """
         Execute an SQL modification query using the thread-local connection.
 
         Args:
-        - query (str): The SQL query to execute.
-        - args (tuple): The arguments to the SQL query.
+            query (str): The SQL query to execute.
+            args (tuple): The arguments to the SQL query.
 
         Returns:
-        Optional[int]: int or None: The last row id from the query, or None if an error occurred.
+            int: The last row id from the query.
+
+        Raises:
+            sqlite3.Error: If the query execution fails.
         """
         conn = self.get_connection()
         try:
@@ -68,39 +71,46 @@ class Database:
             cur.execute(query, args)
             conn.commit()
             return cur.lastrowid
-        except Error as e:
+        except sqlite3.Error as e:
             logger.error("Failed to execute query: %s", e)
-            return None
+            raise
 
-    def execute_read_query(self, query: str, args: tuple = ()) -> Optional[list]:
+    def execute_read_query(self, query: str, args: tuple = (), fetchone: bool = False) -> list:
         """
         Execute a read SQL query using the thread-local connection.
 
         Args:
-        - query (str): The SQL query for reading data.
-        - args (tuple): The arguments to the SQL query.
+            query (str): The SQL query for reading data.
+            args (tuple): The arguments to the SQL query.
 
         Returns:
-        Optional[list]: list or None: The query result set, or None if an error occurred.
+            list: The query result set.
+
+        Raises:
+            sqlite3.Error: If the read operation fails.
         """
         conn = self.get_connection()
         try:
             cur = conn.cursor()
             cur.execute(query, args)
-            return cur.fetchall()
-        except Error as e:
+            if fetchone:
+                # Wrapping in list for consistent return type
+                return cur.fetchone()
+            else:
+                return cur.fetchall()
+        except sqlite3.Error as e:
             logger.error("Failed to read from database: %s", e)
-            return None
+            raise
 
     def is_table_empty(self, table_name: str) -> bool:
         """
         Check if a given table is empty.
 
         Args:
-        - table_name (str): The name of the table to check.
+            table_name (str): The name of the table to check.
 
         Returns:
-        bool: True if the table is empty, False otherwise.
+            bool: True if the table is empty, False otherwise.
         """
         check_sql = f"SELECT COUNT(*) FROM {table_name};"
         result = self.execute_read_query(check_sql)
@@ -150,7 +160,7 @@ class Database:
             username TEXT NOT NULL UNIQUE,
             password TEXT NOT NULL,
             nickname TEXT,
-            role_id INTEGER,
+            role_id INTEGER NOT NULL,
             FOREIGN KEY (role_id) REFERENCES roles(id));
         """
 
