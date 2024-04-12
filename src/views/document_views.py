@@ -45,7 +45,11 @@ class DocumentResource(Resource):
         args = self.parser.parse_args()
 
         document = add_document(**args, **kwargs)
-        return {"message": app_manager.RESPONSE_DOCUMENT_ADD_SUCCESS, "data": [d.to_dict() for d in document]}, 201
+
+        if document:
+            return {"message": app_manager.RESPONSE_DOCUMENT_ADD_SUCCESS, "data": [d.to_dict() for d in document]}, 200
+        else:
+            return {"message": app_manager.RESPONSE_DOCUMENT_ADD_FAILED}, 400
 
     @include_user_id
     def put(self, id, **kwargs):
@@ -58,7 +62,7 @@ class DocumentResource(Resource):
         updated_document = update_document(id, args, **kwargs)
 
         if updated_document is None:
-            return {"message": app_manager.RESPONSE_DOCUMENT_UPDATE_FAIL}, 404
+            return {"message": app_manager.RESPONSE_DOCUMENT_UPDATE_FAILED}, 404
 
         return {"message": app_manager.RESPONSE_DOCUMENT_UPDATE_SUCCESS, "data": updated_document.to_dict()}, 200
 
@@ -68,4 +72,4 @@ class DocumentResource(Resource):
         if isinstance(deletion_result, tuple) and deletion_result[0] != 0:
             return {"message": app_manager.RESPONSE_DOCUMENT_REMOVE_SUCCESS, "data": deletion_result}
 
-        return {"message": app_manager.RESPONSE_DOCUMENT_REMOVE_FAIL}, 404
+        return {"message": app_manager.RESPONSE_DOCUMENT_REMOVE_FAILED}, 404

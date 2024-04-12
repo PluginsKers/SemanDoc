@@ -8,9 +8,15 @@ from src.modules.document import (
 )
 from src.modules.document.vectorstore import VectorStoreError
 from src.modules.database import Document as Docdb
+from src.modules.database.user import User, Role
 
 
 logger = logging.getLogger(__name__)
+
+
+user_db = User(app_manager.get_database_instance())
+doc_db = Docdb(app_manager.get_database_instance())
+role_db = Role(app_manager.get_database_instance())
 
 
 def find_and_optimize_documents(query: str, tags: Optional[List[str]] = None) -> List[Document]:
@@ -19,11 +25,11 @@ def find_and_optimize_documents(query: str, tags: Optional[List[str]] = None) ->
     Allows specification of document type for more targeted searches.
 
     Args:
-    - query (str): The text query to search for relevant documents.
-    - tags (Optional[List[str]]): Additional tags for further refining the search. Default is None.
+        query (str): The text query to search for relevant documents.
+        tags (Optional[List[str]]): Additional tags for further refining the search. Default is None.
 
     Returns:
-    List[Document]: A list of optimized and relevant documents.
+        List[Document]: A list of optimized and relevant documents.
     """
     attempt_limit = 10
     min_documents_required = 1
@@ -52,7 +58,7 @@ def find_and_optimize_documents(query: str, tags: Optional[List[str]] = None) ->
             filter=metadata,
             k=10,
             score_threshold=score_threshold,
-            powerset=True if tags is None else False
+            powerset=False
         )
 
         score_threshold = min(
@@ -76,18 +82,18 @@ def get_documents(
     additional filtering and configuration via keyword arguments.
 
     Args:
-    - query (str): The search query to match documents.
-    - k (int, optional): The maximum number of search results to return. Defaults to 6.
-    - filter (Optional[Dict[str, Any]], optional): A dictionary of filtering criteria to apply to the search.
-        These criteria are dependent on the document store's capabilities.
-    - **kwargs: Arbitrary keyword arguments for additional search configuration. Common parameters include:
-        - score_threshold (Optional[float]): A minimum score threshold for documents to be considered a match.
-        - powerset (Optional[bool]): A flag indicating whether to use powerset for generating query permutations.
-        This can be useful in certain types of searches where all possible subsets of the query terms should be considered.
+        query (str): The search query to match documents.
+        k (int, optional): The maximum number of search results to return. Defaults to 6.
+        filter (Optional[Dict[str, Any]], optional): A dictionary of filtering criteria to apply to the search.
+          These criteria are dependent on the document store's capabilities.
+        **kwargs: Arbitrary keyword arguments for additional search configuration. Common parameters include:
+            - score_threshold (Optional[float]): A minimum score threshold for documents to be considered a match.
+            - powerset (Optional[bool]): A flag indicating whether to use powerset for generating query permutations.
+            This can be useful in certain types of searches where all possible subsets of the query terms should be considered.
 
     Returns:
-    List[dict]: A list of dictionaries, each representing a document matching the search criteria. Each dictionary
-    contains details of the document, such as its content and metadata.
+        List[dict]: A list of dictionaries, each representing a document matching the search criteria. Each dictionary
+        contains details of the document, such as its content and metadata.
 
     Example usage:
         # Basic search with no additional parameters
@@ -122,12 +128,24 @@ def add_document(
     metadata: Dict[str, Any],
     **kwargs
 ) -> List[Document]:
+    user_id = kwargs.get('user_id')
+    if user_id is None:
+        raise ValueError("User ID is required for adding a document.")
+
+    user_info = user_db.get_user_by_id(user_id)
+    if user_info is None:
+        raise ValueError("User does not exist.")
+
+    permissions = role_db.get_role(user_info['role_id'])
+    if permissions is None:
+        raise ValueError("Role does not exist or could not be retrieved.")
+
+    if 'DOCUMENTS_CONTROL' not in permissions:
+        raise ValueError("User does not have permission to add documents.")
+
     try:
-        if kwargs.get('user_id') is None:
-            raise ValueError("User ID is required for adding a document.")
 
         store = app_manager.get_vector_store()
-        docDb = Docdb(app_manager.get_database_instance())
         page_content = data
         new_doc = Document(page_content, metadata)
 
@@ -143,7 +161,7 @@ def add_document(
 
         store.save_index()
 
-        docDb.add_document(
+        doc_db.add_document(
             new_doc.page_content,
             str(new_doc.metadata.to_dict()),
             kwargs.get('user_id')
@@ -154,19 +172,29 @@ def add_document(
         return documents
     except Exception as e:
         logger.error("An error occurred while adding a document: %s", str(e))
-        raise  # Rethrowing the exception after logging
+        return []  # Rethrowing the exception after logging
 
 
 def delete_documents_by_ids(
     ids_to_delete: List[str],
     **kwargs
 ) -> Union[Tuple[int, int], str]:
-    try:
-        if kwargs.get('user_id') is None:
-            raise ValueError("User ID is required for adding a document.")
+    user_id = kwargs.get('user_id')
+    if user_id is None:
+        raise ValueError("User ID is required for deleting a document.")
 
+    user_info = user_db.get_user_by_id(user_id)
+    if user_info is None:
+        raise ValueError("User does not exist.")
+    permissions = role_db.get_role(user_info['role_id'])
+    if permissions is None:
+        raise ValueError("Role does not exist or could not be retrieved.")
+
+    if 'DOCUMENTS_CONTROL' not in permissions:
+        raise ValueError("User does not have permission to delete documents.")
+
+    try:
         store = app_manager.get_vector_store()
-        docDb = Docdb(app_manager.get_database_instance())
 
         ret = store.delete_documents_by_ids(ids_to_delete)
 
@@ -185,12 +213,23 @@ def update_document(
     data: dict[str, Any],
     **kwargs
 ) -> Optional[Document]:
-    try:
-        if kwargs.get('user_id') is None:
-            raise ValueError("User ID is required for adding a document.")
+    user_id = kwargs.get('user_id')
+    if user_id is None:
+        raise ValueError("User ID is required for updating a document.")
 
+    user_info = user_db.get_user_by_id(user_id)
+    if user_info is None:
+        raise ValueError("User does not exist.")
+    permissions = role_db.get_role(user_info['role_id'])
+
+    if permissions is None:
+        raise ValueError("Role does not exist or could not be retrieved.")
+
+    if 'DOCUMENTS_CONTROL' not in permissions:
+        raise ValueError("User does not have permission to update documents.")
+
+    try:
         store = app_manager.get_vector_store()
-        docDb = Docdb(app_manager.get_database_instance())
         ret = store.delete_documents_by_ids([ids])
         if isinstance(ret, tuple):
             n_removed, _ = ret
@@ -210,9 +249,9 @@ def update_document(
                 raise VectorStoreError(
                     "Failed to add document to the database.")
 
-            docDb.add_document(
+            doc_db.add_document(
                 new_doc.page_content,
-                str(new_doc.metadata),
+                str(new_doc.metadata.to_dict()),
                 kwargs.get('user_id'),
                 'Document updated.'
             )
@@ -224,3 +263,35 @@ def update_document(
     except Exception as e:
         logger.error("An error occurred while updating a document: %s", str(e))
         raise  # Rethrowing the exception after logging
+
+
+def chat_with_kb(query: str, dep_name: str = None) -> str:
+    if not app_manager.LLM_MODEL_PATH:
+        return app_manager.RESPONSE_LLM_MODEL_PATH_NOT_FOUND
+
+    def build_history(reranked_documents: List[Document]) -> List[Dict[str, str]]:
+        if reranked_documents:
+            document_texts = "".join(
+                doc.page_content for doc in reranked_documents)
+            system_prompt = app_manager.LLM_SYSTEM_PROMPT.format(
+                document_texts)
+        else:
+            system_prompt = app_manager.LLM_SYSTEM_PROMPT.format(
+                app_manager.LLM_SYSTEM_PROMPT_FILLNON)
+
+        _history = [{"role": "system", "content": system_prompt}]
+
+        return _history
+
+    docs = find_and_optimize_documents(query, [dep_name])
+    if len(docs) > 0:
+        history = build_history(docs)
+        model = app_manager.get_llm_model()
+        response = model.get_response(
+            query,
+            app_manager.LLM_CHAT_PROMPT,
+            history
+        )
+        return response
+
+    return '暂未找到任何相关信息！'

@@ -3,8 +3,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 
 from src import app_manager
-from src.modules.models.llm import LLMModel
 from src.services.document_service import find_and_optimize_documents
+from src.modules.models.llm import LLMModel
 from src.modules.document import Document
 from src.modules.wecom import (
     HistoryRecords,

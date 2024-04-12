@@ -15,7 +15,7 @@ class LoginResource(AuthResource):
 
         args = self.reqparse.parse_args()
 
-        token = authenticate(args['username'], args['password'])
+        token = authenticate(**args)
 
         if token:
             return {"message": app_manager.RESPONSE_LOGIN_SUCCESS, "token": token}, 200
