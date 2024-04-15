@@ -1,8 +1,9 @@
+from typing import Optional
 from flask_restful import Resource, reqparse
 
 from src import app_manager
 from src import include_user_id
-from src.services.auth_service import create_user, delete_user_by_id, get_user_by_id
+from src.services.user_service import create_user, delete_user_by_id, get_user_by_id, get_users
 
 
 class UserResource(Resource):
@@ -11,7 +12,7 @@ class UserResource(Resource):
         super().__init__()
 
     @include_user_id
-    def get(self, id: int, **kwargs):
+    def get(self, id: Optional[int] = None, **kwargs):
         """
         TODO:
         - Implement the functionality to filter users by nickname.
@@ -22,7 +23,10 @@ class UserResource(Resource):
         - Currently, the numeric constraints on 'id' and 'role_id' are enforced directly by the routing logic.
         - The 'nickname' parameter is only received through the query parameters of a GET request.
         """
-        success, data = get_user_by_id(id, **kwargs)
+        if id is not None:
+            success, data = get_user_by_id(id, **kwargs)
+        else:
+            success, data = get_users(**kwargs)
         if success:
             return {'message': app_manager.RESPONSE_USER_QUERY_SUCCESS, 'data': data}, 200
         else:

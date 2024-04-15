@@ -136,11 +136,7 @@ def add_document(
     if user_info is None:
         raise ValueError("User does not exist.")
 
-    permissions = role_db.get_role(user_info['role_id'])
-    if permissions is None:
-        raise ValueError("Role does not exist or could not be retrieved.")
-
-    if 'DOCUMENTS_CONTROL' not in permissions:
+    if not role_db.check_permission(user_info['role_id'], 'DOCUMENTS_CONTROL'):
         raise ValueError("User does not have permission to add documents.")
 
     try:
@@ -186,11 +182,8 @@ def delete_documents_by_ids(
     user_info = user_db.get_user_by_id(user_id)
     if user_info is None:
         raise ValueError("User does not exist.")
-    permissions = role_db.get_role(user_info['role_id'])
-    if permissions is None:
-        raise ValueError("Role does not exist or could not be retrieved.")
 
-    if 'DOCUMENTS_CONTROL' not in permissions:
+    if not role_db.check_permission(user_info['role_id'], 'DOCUMENTS_CONTROL'):
         raise ValueError("User does not have permission to delete documents.")
 
     try:
@@ -220,12 +213,8 @@ def update_document(
     user_info = user_db.get_user_by_id(user_id)
     if user_info is None:
         raise ValueError("User does not exist.")
-    permissions = role_db.get_role(user_info['role_id'])
 
-    if permissions is None:
-        raise ValueError("Role does not exist or could not be retrieved.")
-
-    if 'DOCUMENTS_CONTROL' not in permissions:
+    if not role_db.check_permission(user_info['role_id'], 'DOCUMENTS_CONTROL'):
         raise ValueError("User does not have permission to update documents.")
 
     try:

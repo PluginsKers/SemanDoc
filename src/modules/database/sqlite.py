@@ -38,8 +38,8 @@ class Database:
         try:
             self.thread_conn.conn = sqlite3.connect(
                 self.db_file, check_same_thread=False)
-            logger.info("Connected to SQLite database, version: %s",
-                        sqlite3.version)
+            # logger.info("Connected to SQLite database, version: %s",
+            #             sqlite3.version)
             self.check_and_initialize_tables()
         except Error as e:
             logger.error("Database connection failed: %s", e)

@@ -61,6 +61,22 @@ class Role(Database):
             logger.error(f"Failed to retrieve role {role_id}: {e}")
             return None
 
+    def check_permission(self, role_id: int, permission: str) -> bool:
+        """
+        Checks if the specified role has the given permission.
+
+        Args:
+            role_id: The ID of the role to check.
+            permission: The permission to check for.
+
+        Returns:
+            bool: True if the role has the permission, False otherwise.
+        """
+        permissions = self.get_role(role_id)
+        if permissions is None:
+            return False
+        return permission in permissions
+
     def has_role(self, role_id: int) -> bool:
         """
         Checks if a role exists by its ID.
@@ -219,6 +235,32 @@ class User(Database):
             keys = ['id', 'username', 'nickname', 'role_id']
             return dict(zip(keys, result[0]))
         return None
+
+    def get_users_excluding_roles(self, role_ids: Optional[List[int]] = None) -> List[dict]:
+        """
+        Retrieves all users whose role ID is not in the specified list of role IDs.
+        If no role IDs are provided, all users will be returned.
+
+        Args:
+            role_ids: Optional list of role IDs to exclude from the results. If None or empty, all users are returned.
+
+        Returns:
+            List[dict]: A list of dictionaries, each representing a user whose role ID is not in the provided list,
+                        or all users if no role IDs are provided.
+        """
+        if role_ids and len(role_ids) > 0:
+            # Create placeholders for SQL query
+            placeholders = ','.join('?' for _ in role_ids)
+            query = f"SELECT id, username, nickname, role_id FROM users WHERE role_id NOT IN ({placeholders});"
+            result = self.execute_read_query(query, tuple(role_ids))
+        else:
+            query = "SELECT id, username, nickname, role_id FROM users;"
+            result = self.execute_read_query(query)
+
+        if result:
+            keys = ['id', 'username', 'nickname', 'role_id']
+            return [dict(zip(keys, row)) for row in result]
+        return []
 
     def get_users_by_role_id(self, role_id: int) -> List[dict]:
         """
