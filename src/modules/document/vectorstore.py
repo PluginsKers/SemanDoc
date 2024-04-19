@@ -123,6 +123,8 @@ class VectorStore:
             if original_pkl_path.exists():
                 shutil.copyfile(original_pkl_path, backup_pkl_path)
 
+            self.rebuild_index()
+
             index_to_save = self.index
             if self.device == "cuda":
                 logger.info("Transferring index from GPU to CPU for saving.")
@@ -183,6 +185,41 @@ class VectorStore:
             return faiss.index_cpu_to_gpu(self.gpu_resources, 0, index_cpu)
         else:
             return index_cpu
+
+    def rebuild_index(self):
+        """
+        Rebuilds the FAISS index based on the current state of the docstore. This is useful if the
+        embedding model has changed or if the index has become corrupted or out-of-sync with the docstore.
+        """
+        # Load the FAISS index in CPU mode, regardless of the current device setting, to ensure full compatibility
+        faiss = dependable_faiss_import()
+        d = self.embedding.model.get_sentence_embedding_dimension()
+        new_index_cpu = faiss.IndexFlatL2(d)
+
+        # Embed all documents anew using the current embedding model
+        all_docs = list(self.docstore.values())
+        all_ids = list(self.docstore.keys())
+        embeddings = np.array(self.embedding._embed_texts(
+            [doc.page_content for doc in all_docs]), dtype=np.float32)
+
+        # Clear and rebuild the index
+        new_index_cpu.add(embeddings)
+
+        # Reset the index-to-docstore ID mapping
+        self.index_to_docstore_id = {
+            i: doc_id for i, doc_id in enumerate(all_ids)}
+
+        # Depending on the device, load the index into the appropriate memory (GPU or CPU)
+        if self.device == 'cuda':
+            # Ensure the GPU resources are properly initialized
+            if not self.gpu_resources:
+                self.gpu_resources = faiss.StandardGpuResources()
+            self.index = faiss.index_cpu_to_gpu(
+                self.gpu_resources, 0, new_index_cpu)
+        else:
+            self.index = new_index_cpu
+
+        logger.info("Index has been successfully rebuilt and reloaded.")
 
     def remove_documents_by_id(
         self, target_id_list: Optional[List[str]]
