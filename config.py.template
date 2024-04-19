@@ -14,6 +14,7 @@ class BaseConfig:
 
     DB_PATH = "./data/database/sqlite.db"  # 配置进行数据备份和记录用户信息的本地数据库文件，默认：./data/database/sqlite.db
     INDEX_PATH = "./data/store"  # 配置你向量文件存储路径，默认：./data/store
+    TMP_FILE_PATH = "./data/files"  # 配置你临时文件存储路径，默认：./data/files
 
     # 企业微信相关配置项，留空默认不开始该部分
     # AGENT_ID="" # 企业微信，应用的ID

@@ -171,6 +171,66 @@ def add_document(
         return []  # Rethrowing the exception after logging
 
 
+def add_documents(
+    documents: List[Document],
+    **kwargs
+) -> List[Document]:
+    """
+    Adds multiple documents to the database and vector store.
+
+    Args:
+        documents (List[Tuple[str, Dict[str, Any]]]): A list of tuples, where each tuple contains the document's
+            data as a string and its metadata as a dictionary.
+        user_id (str): The user ID of the user adding the documents.
+
+    Returns:
+        List[Document]: A list of Document objects that were successfully added.
+
+    Raises:
+        ValueError: If the user does not exist or does not have the necessary permissions.
+    """
+    user_id = kwargs.get('user_id')
+    if user_id is None:
+        raise ValueError("User ID is required for adding a document.")
+
+    user_info = user_db.get_user_by_id(user_id)
+    if user_info is None:
+        raise ValueError("User does not exist.")
+
+    if not role_db.check_permission(user_info['role_id'], 'DOCUMENTS_CONTROL'):
+        raise ValueError("User does not have permission to add documents.")
+
+    new_documents = []
+    for new_document in documents:
+        if len(new_document.metadata.tags.get_tags()) < 1:
+            raise ValueError(
+                "Each document must have at least one tag in its metadata.")
+        new_documents.append(new_document)
+
+    try:
+        store = app_manager.get_vector_store()
+        added_documents = store.add_documents(new_documents)
+        if len(added_documents) <= 0:
+            raise VectorStoreError(
+                "Failed to add documents to the VectorStore.")
+
+        store.save_index()
+
+        # Add document details to the database.
+        for doc in added_documents:
+            doc_db.add_document(
+                doc.page_content,
+                str(doc.metadata.to_dict()),
+                user_id
+            )
+
+        logger.info("Documents added successfully.")
+        return added_documents
+    except Exception as e:
+        logger.error("An error occurred while adding documents: %s", str(e))
+        return []
+
+
 def delete_documents_by_ids(
     ids_to_delete: List[str],
     **kwargs

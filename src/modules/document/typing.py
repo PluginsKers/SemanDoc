@@ -64,6 +64,16 @@ class Tags:
         """
         self.tags.append(tag)
 
+    def add_tags(self, tags: List[str]):
+        """
+        Adds a new tag to the tags set if it's not already present.
+
+        Args:
+            tag (str): The tag to add.
+        """
+        for tag in tags:
+            self.add_tag(tag)
+
     def remove_tag(self, tag: str):
         """
         Removes a tag from the tags set if it exists.
@@ -95,7 +105,7 @@ class Tags:
         Returns:
             List[str]: A list of tags.
         """
-        return list(self.tags)
+        return self.tags
 
     def generate_powerset_with_permutations(self) -> List[List[str]]:
         """

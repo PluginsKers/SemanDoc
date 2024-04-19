@@ -1,5 +1,4 @@
 import json
-from flask import g
 from flask_restful import Resource, reqparse, inputs
 
 from src import app_manager, include_user_id

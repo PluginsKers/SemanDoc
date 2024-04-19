@@ -8,6 +8,9 @@ from src.views import register_resources
 
 def create_app() -> Flask:
     app = Flask(__name__)
+
+    # Example: Allow up to 16MB files.
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
     app.url_map.strict_slashes = False
     CORS(app, resources={r"/*": {"origins": "*"}})
 
