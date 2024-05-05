@@ -3,13 +3,13 @@ import sqlite3
 from datetime import datetime
 from typing import Optional
 
-from src.modules.database.sqlite import Database
+from src.modules.database.sqlite import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
 
-class Document(Database):
-    def __init__(self, db: Database):
+class Document(DatabaseManager):
+    def __init__(self, db: DatabaseManager):
         """
         Initialize the Document class with a database connection.
 

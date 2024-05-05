@@ -1,13 +1,13 @@
 from typing import List, Optional, Set, Tuple, Union
-from src.modules.database.sqlite import Database
+from src.modules.database.sqlite import DatabaseManager
 from src.utils.security import encrypt_password
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class Role(Database):
-    def __init__(self, db: Database):
+class Role(DatabaseManager):
+    def __init__(self, db: DatabaseManager):
         """
         Initialize the Role class with a database connection.
 
@@ -128,8 +128,8 @@ class Role(Database):
             return False
 
 
-class User(Database):
-    def __init__(self, db: Database):
+class User(DatabaseManager):
+    def __init__(self, db: DatabaseManager):
         """
         Initialize the User class with a database connection.
 

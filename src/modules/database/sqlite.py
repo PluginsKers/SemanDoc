@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from sqlite3 import Error
 import logging
@@ -9,7 +10,7 @@ from src.utils.security import encrypt_password
 logger = logging.getLogger(__name__)
 
 
-class Database:
+class DatabaseManager:
     def __init__(self, db: str):
         """
         Initialize the database class with the database file path.
@@ -19,6 +20,15 @@ class Database:
         """
         self.db_file = db
         self.thread_conn = threading.local()
+        self.ensure_db_file()
+
+    def ensure_db_file(self):
+        """
+        Ensure the database file exists. Create an empty file if it doesn't.
+        """
+        if not os.path.exists(self.db_file):
+            open(self.db_file, 'a').close()
+            logger.info("Database file created at %s", self.db_file)
 
     def get_connection(self) -> sqlite3.Connection:
         """
@@ -38,8 +48,6 @@ class Database:
         try:
             self.thread_conn.conn = sqlite3.connect(
                 self.db_file, check_same_thread=False)
-            # logger.info("Connected to SQLite database, version: %s",
-            #             sqlite3.version)
             self.check_and_initialize_tables()
         except Error as e:
             logger.error("Database connection failed: %s", e)
