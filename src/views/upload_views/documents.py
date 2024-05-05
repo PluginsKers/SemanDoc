@@ -1,4 +1,5 @@
 import os
+import hashlib
 from flask import request
 from flask_restful import Resource
 from werkzeug.utils import secure_filename
@@ -19,13 +20,18 @@ class DocumentUploadResource(Resource):
 
         file = request.files['file']
 
-        # empty part without filename
         if file.filename == '':
             return {"message": app_manager.RESPONSE_DOCUMENT_ADD_FAILED}, 400
 
         if file and file.filename.endswith('.xlsx'):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app_manager.TMP_FILE_PATH, filename)
+            original_filename = secure_filename(file.filename)
+            # Create a secure hash of the original file name
+            hash_filename = hashlib.sha256(
+                original_filename.encode()).hexdigest()
+            # Append the file extension to maintain the file type
+            encrypted_filename = f"{hash_filename}.xlsx"
+            filepath = os.path.join(
+                app_manager.TMP_FILE_PATH, encrypted_filename)
             file.save(filepath)
 
             processed_data = process_excel_file(filepath)
