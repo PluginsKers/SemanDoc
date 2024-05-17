@@ -14,7 +14,7 @@ class Role(DatabaseManager):
         Args:
         - db: A Database instance.
         """
-        super().__init__(db.db_file)
+        super().__init__(db.db_path)
 
     def create_role(self, role_name: str, permissions: Union[List[str], Set[str]]) -> Tuple[bool, str]:
         """
@@ -136,7 +136,7 @@ class User(DatabaseManager):
         Args:
             db: A Database instance.
         """
-        super().__init__(db.db_file)
+        super().__init__(db.db_path)
 
     def user_exists(self, username: str) -> bool:
         """
@@ -325,7 +325,58 @@ class User(DatabaseManager):
             logger.error(f"Failed to update user nickname: {e}")
             return False
 
-    def update_user_password(self, user_id: int, password) -> bool:
+    def update_user_password(self, user_id: int, password: str) -> bool:
         if not self.user_exists_by_id(user_id):
             return False
-        pass
+        encrypted_password = encrypt_password(password)
+        query = "UPDATE users SET password = ? WHERE id = ?;"
+        try:
+            self.execute_query(query, (encrypted_password, user_id))
+            return True
+        except Exception as e:
+            logger.error(f"Failed to update user password: {e}")
+            return False
+
+    def update_user(self, user_id: int, password: Optional[str] = None, nickname: Optional[str] = None, role_id: Optional[int] = None) -> Tuple[bool, str]:
+        """
+        Updates user information.
+
+        Args:
+            user_id: The ID of the user to update.
+            username: The new username (optional).
+            password: The new password (optional, will be encrypted).
+            nickname: The new nickname (optional).
+            role_id: The new role ID (optional).
+
+        Returns:
+            Tuple[bool, str]: A tuple of (bool, str) indicating success and a message.
+        """
+        if not self.user_exists_by_id(user_id):
+            return False, "User does not exist."
+
+        fields = []
+        values = []
+
+        if password:
+            encrypted_password = encrypt_password(password)
+            fields.append("password = ?")
+            values.append(encrypted_password)
+        if nickname:
+            fields.append("nickname = ?")
+            values.append(nickname)
+        if role_id is not None:
+            fields.append("role_id = ?")
+            values.append(role_id)
+
+        if not fields:
+            return False, "No fields to update."
+
+        query = f"UPDATE users SET {', '.join(fields)} WHERE id = ?;"
+        values.append(user_id)
+
+        try:
+            self.execute_query(query, tuple(values))
+            return True, "User updated successfully."
+        except Exception as e:
+            logger.error(f"Failed to update user: {e}")
+            return False, "Failed to update user."

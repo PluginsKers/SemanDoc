@@ -12,7 +12,7 @@ class BaseConfig:
     LLM_MODEL_PATH = "THUDM/chatglm3-6b"  # 配置大语言模型路径
     RERANKER_MODEL_PATH = "BAAI/bge-reranker-large"  # 配置重排序模型路径
 
-    DB_PATH = "./data/database/sqlite.db"  # 配置进行数据备份和记录用户信息的本地数据库文件，默认：./data/database/sqlite.db
+    DB_PATH = "./data/database"  # 配置进行数据备份和记录用户信息的本地数据库路径，默认：./data/database
     INDEX_PATH = "./data/store"  # 配置你向量文件存储路径，默认：./data/store
     TMP_FILE_PATH = "./data/files"  # 配置你临时文件存储路径，默认：./data/files
 
@@ -53,6 +53,8 @@ class BaseConfig:
 
     # 返回内容配置项
     # 该部分不允许留空
+    RESPONSE_USER_UPDATE_SUCCESS = "用户信息更新成功"
+    RESPONSE_USER_UPDATE_FAILED = "用户信息更新失败"
     RESPONSE_USER_CREATE_SUCCESS = "用户创建成功"
     RESPONSE_USER_CREATE_FAILED = "用户创建失败"
     RESPONSE_USER_QUERY_SUCCESS = "用户查询成功"

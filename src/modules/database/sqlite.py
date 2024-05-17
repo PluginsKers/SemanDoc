@@ -3,7 +3,6 @@ import sqlite3
 from sqlite3 import Error
 import logging
 import threading
-from typing import Any, Optional
 
 from src.utils.security import encrypt_password
 
@@ -11,24 +10,31 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
-    def __init__(self, db: str):
+    def __init__(self, db_path: str):
         """
-        Initialize the database class with the database file path.
+        Initialize the database class with the database directory path.
 
         Args:
-            db (str): Path to the SQLite database file.
+            db_path (str): Path to the directory where the SQLite database file should be located.
         """
-        self.db_file = db
+        self.db_path = db_path
+        self.db_file = os.path.join(db_path, "database.db")
         self.thread_conn = threading.local()
         self.ensure_db_file()
 
     def ensure_db_file(self):
         """
-        Ensure the database file exists. Create an empty file if it doesn't.
+        Ensure the database file and its parent directory exist.
+        Create an empty file if it doesn't exist.
+        Raise an error if the directory already exists but the file doesn't.
         """
-        if not os.path.exists(self.db_file):
+        if not os.path.exists(self.db_path):
+            os.makedirs(self.db_path)
             open(self.db_file, 'a').close()
             logger.info("Database file created at %s", self.db_file)
+        elif not os.path.exists(self.db_file):
+            raise FileExistsError(
+                f"The directory {self.db_path} exists but the database file {self.db_file} does not.")
 
     def get_connection(self) -> sqlite3.Connection:
         """

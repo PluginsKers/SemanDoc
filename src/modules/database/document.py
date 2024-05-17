@@ -16,7 +16,7 @@ class Document(DatabaseManager):
         Args:
             db: A Database instance.
         """
-        super().__init__(db.db_file)
+        super().__init__(db.db_path)
 
     def add_document(self, page_content: str, metadata: str, user_id: Optional[int] = None, desc: str = 'Document added.') -> bool:
         """

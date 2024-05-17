@@ -26,14 +26,17 @@ class DocumentResource(Resource):
         self.parser.add_argument(
             'powerset', type=inputs.boolean, default=True, location='args')
         args = self.parser.parse_args()
-        if args['filter']:
-            try:
-                args['filter'] = json.loads(args['filter'])
-            except ValueError:
-                return {"message": "Invalid 'filter' format, must be a valid JSON string."}, 400
+        try:
+            if args['filter']:
+                try:
+                    args['filter'] = json.loads(args['filter'])
+                except ValueError:
+                    return {"message": "Invalid 'filter' format, must be a valid JSON string."}, 400
 
-        documents = get_documents(**args, **kwargs)
-        return {"message": app_manager.RESPONSE_DOCUMENT_SEARCH_SUCCESS, "data": documents}, 200
+            documents = get_documents(**args, **kwargs)
+            return {"message": app_manager.RESPONSE_DOCUMENT_SEARCH_SUCCESS, "data": documents}, 200
+        except Exception as e:
+            return {"message": f"{app_manager.RESPONSE_DOCUMENT_SEARCH_SUCCESS}: {str(e)}"}, 400
 
     @include_user_id
     def post(self, **kwargs):
@@ -42,13 +45,15 @@ class DocumentResource(Resource):
         self.parser.add_argument(
             'metadata', type=dict, required=True, location='json')
         args = self.parser.parse_args()
+        try:
+            document = add_document(**args, **kwargs)
 
-        document = add_document(**args, **kwargs)
-
-        if document:
-            return {"message": app_manager.RESPONSE_DOCUMENT_ADD_SUCCESS, "data": [d.to_dict() for d in document]}, 200
-        else:
-            return {"message": app_manager.RESPONSE_DOCUMENT_ADD_FAILED}, 400
+            if document:
+                return {"message": app_manager.RESPONSE_DOCUMENT_ADD_SUCCESS, "data": [d.to_dict() for d in document]}, 200
+            else:
+                return {"message": app_manager.RESPONSE_DOCUMENT_ADD_FAILED}, 400
+        except Exception as e:
+            return {"message": f"{app_manager.RESPONSE_DOCUMENT_ADD_FAILED}: {str(e)}"}, 400
 
     @include_user_id
     def put(self, id, **kwargs):
@@ -67,8 +72,11 @@ class DocumentResource(Resource):
 
     @include_user_id
     def delete(self, id, **kwargs):
-        deletion_result = delete_documents_by_ids([id], **kwargs)
-        if isinstance(deletion_result, tuple) and deletion_result[0] != 0:
-            return {"message": app_manager.RESPONSE_DOCUMENT_REMOVE_SUCCESS, "data": deletion_result}
+        try:
+            deletion_result = delete_documents_by_ids([id], **kwargs)
+            if isinstance(deletion_result, tuple) and deletion_result[0] != 0:
+                return {"message": app_manager.RESPONSE_DOCUMENT_REMOVE_SUCCESS, "data": deletion_result}
 
-        return {"message": app_manager.RESPONSE_DOCUMENT_REMOVE_FAILED}, 404
+            return {"message": app_manager.RESPONSE_DOCUMENT_REMOVE_FAILED}, 404
+        except Exception as e:
+            return {"message": f"{app_manager.RESPONSE_DOCUMENT_REMOVE_FAILED}: {str(e)}"}, 400

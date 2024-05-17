@@ -15,9 +15,12 @@ class LoginResource(AuthResource):
 
         args = self.reqparse.parse_args()
 
-        token = authenticate(**args)
+        try:
+            token = authenticate(**args)
 
-        if token:
-            return {"message": app_manager.RESPONSE_LOGIN_SUCCESS, "token": token}, 200
-        else:
-            return {"message": app_manager.RESPONSE_LOGIN_FAILED}, 401
+            if token:
+                return {"message": app_manager.RESPONSE_LOGIN_SUCCESS, "token": token}, 200
+            else:
+                return {"message": app_manager.RESPONSE_LOGIN_FAILED}, 401
+        except Exception as e:
+            return {"message": f"{app_manager.RESPONSE_LOGIN_FAILED}: {str(e)}"}, 400

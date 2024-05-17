@@ -1,6 +1,8 @@
 import logging
 from typing import Any, Dict, List, Tuple, Optional, Union
 
+import numpy as np
+
 from src import app_manager
 from src.modules.document import (
     Document,
@@ -128,67 +130,20 @@ def add_document(
     metadata: Dict[str, Any],
     **kwargs
 ) -> List[Document]:
-    user_id = kwargs.get('user_id')
-    if user_id is None:
-        raise ValueError("User ID is required for adding a document.")
-
-    user_info = user_db.get_user_by_id(user_id)
-    if user_info is None:
-        raise ValueError("User does not exist.")
-
-    if not role_db.check_permission(user_info['role_id'], 'DOCUMENTS_CONTROL'):
-        raise ValueError("User does not have permission to add documents.")
-
-    try:
-
-        store = app_manager.get_vector_store()
-        page_content = data
-        new_doc = Document(page_content, metadata)
-
-        if len(new_doc.metadata.tags.get_tags()) < 1:
-            raise ValueError(
-                "The document must have at least one tag in its metadata.")
-
-        documents = store.add_documents([new_doc])
-
-        if len(documents) <= 0:
-            raise VectorStoreError(
-                "Failed to add document to the VectorStore.")
-
-        store.save_index()
-
-        doc_db.add_document(
-            new_doc.page_content,
-            str(new_doc.metadata.to_dict()),
-            kwargs.get('user_id')
-        )
-
-        logger.info("Document added successfully.")
-
-        return documents
-    except Exception as e:
-        logger.error("An error occurred while adding a document: %s", str(e))
-        return []  # Rethrowing the exception after logging
+    return _add_documents_helper([Document(page_content=data, metadata=metadata)], **kwargs)
 
 
 def add_documents(
     documents: List[Document],
     **kwargs
 ) -> List[Document]:
-    """
-    Adds multiple documents to the database and vector store.
+    return _add_documents_helper(documents, **kwargs)
 
-    Args:
-        documents (List[Tuple[str, Dict[str, Any]]]): A list of tuples, where each tuple contains the document's
-            data as a string and its metadata as a dictionary.
-        user_id (str): The user ID of the user adding the documents.
 
-    Returns:
-        List[Document]: A list of Document objects that were successfully added.
-
-    Raises:
-        ValueError: If the user does not exist or does not have the necessary permissions.
-    """
+def _add_documents_helper(
+    documents: List[Document],
+    **kwargs
+) -> List[Document]:
     user_id = kwargs.get('user_id')
     if user_id is None:
         raise ValueError("User ID is required for adding a document.")
@@ -201,11 +156,11 @@ def add_documents(
         raise ValueError("User does not have permission to add documents.")
 
     new_documents = []
-    for new_document in documents:
-        if len(new_document.metadata.tags.get_tags()) < 1:
+    for new_doc in documents:
+        if len(new_doc.metadata.tags.get_tags()) < 1:
             raise ValueError(
                 "Each document must have at least one tag in its metadata.")
-        new_documents.append(new_document)
+        new_documents.append(new_doc)
 
     try:
         store = app_manager.get_vector_store()
@@ -216,11 +171,10 @@ def add_documents(
 
         store.save_index()
 
-        # Add document details to the database.
-        for doc in added_documents:
+        for added_document in added_documents:
             doc_db.add_document(
-                doc.page_content,
-                str(doc.metadata.to_dict()),
+                added_document.page_content,
+                str(added_document.metadata.to_dict()),
                 user_id
             )
 
@@ -292,18 +246,19 @@ def update_document(
 
             metadata = data['metadata']
             page_content = data['data']
-            new_doc = Document(page_content, metadata)
-            results = store.add_documents([new_doc])
+            new_documents = Document(page_content, metadata)
+            results = store.add_documents([new_documents])
             if len(results) <= 0:
                 raise VectorStoreError(
                     "Failed to add document to the database.")
 
-            doc_db.add_document(
-                new_doc.page_content,
-                str(new_doc.metadata.to_dict()),
-                kwargs.get('user_id'),
-                'Document updated.'
-            )
+            for new_doc in results:
+                doc_db.add_document(
+                    new_doc.page_content,
+                    str(new_doc.metadata.to_dict()),
+                    kwargs.get('user_id'),
+                    'Document updated.'
+                )
             store.save_index()
 
             logger.info("Document modified successfully.")

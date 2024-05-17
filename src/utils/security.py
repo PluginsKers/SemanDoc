@@ -19,11 +19,12 @@ def check_password(hash: str, password: str):
     return check_password_hash(hash, password)
 
 
-def generate_jwt_token(id: int) -> str:
+def generate_jwt_token(id: int, pwd: str) -> str:
     payload = {
         "exp": datetime.utcnow() + timedelta(hours=6),  # Token expires in 6 hours
         "iat": datetime.utcnow(),
-        "sub": id
+        "sub": id,
+        "pwd": pwd
     }
     return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
