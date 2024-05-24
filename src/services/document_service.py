@@ -35,8 +35,8 @@ def find_and_optimize_documents(query: str, tags: Optional[List[str]] = None) ->
     """
     attempt_limit = 10
     min_documents_required = 1
-    initial_score_threshold = 0.6
-    score_adjustment_step = 0.05
+    initial_score_threshold = 0.2
+    score_adjustment_step = 0.08
     max_score_threshold = initial_score_threshold + \
         (score_adjustment_step * attempt_limit)
 

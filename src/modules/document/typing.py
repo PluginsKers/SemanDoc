@@ -220,6 +220,8 @@ class Tags:
         that include all tags (n elements) and, when n > 2, permutations with one less tag (n-1 elements),
         but only those permutations that start with the highest priority tag or the second highest priority tag are included.
 
+        Additionally, when there are more than one tag, it includes permutations of single tags.
+
         Returns:
             List[List[str]]: A list of permutations, where each permutation is a list of tags.
 
@@ -229,6 +231,7 @@ class Tags:
             - It then filters out those permutations that start with either the highest priority or the second highest priority tag.
             It is assumed that the tag list is already sorted in some manner to reflect their priority.
             - Finally, the method ensures each permutation in the result set is unique by removing any duplicates.
+            - If there are more than one tag, it also adds each tag as a single-element list to the result.
 
         Note:
             - This method assumes the first element in the `self.tags` list has the highest priority and the second element has the second highest priority.
@@ -237,8 +240,8 @@ class Tags:
         result = []
         elements = self.tags
         n = len(elements)
+
         # Generate all permutations for n and n-1 elements when n > 2
-        # Adjust range to include n-1 only if n > 2
         for i in range(n, n - 2 if n > 2 else n - 1, -1):
             for combination in combinations(elements, i):
                 for perm in permutations(combination):
@@ -252,7 +255,28 @@ class Tags:
             if item not in final_result:
                 final_result.append(item)
 
+        # Add single elements if len(self.tags) > 1
+        if len(self.tags) > 1:
+            for element in self.tags:
+                final_result.append([element])
+
         return final_result
+
+    def to_filter(self, powerset: bool = True) -> Optional[Dict[str, Any]]:
+        """
+        Converts the metadata to a filter format, based on its tags.
+
+        Args:
+            powerset (bool): If True, generates filters based on the powerset of tags; otherwise, uses tag combinations.
+
+        Returns:
+            Optional[Dict[str, Any]]: A dictionary representing the filter criteria, or None if no tags are defined.
+        """
+        tags_filter = self.generate_powerset_with_permutations(
+        ) if powerset else self.priority_based_permutations()
+        if not self.get_tags():
+            return None
+        return {"tags": tags_filter}
 
 
 class Metadata:
@@ -295,20 +319,7 @@ class Metadata:
         return self.ids
 
     def to_filter(self, powerset: bool = True) -> Optional[Dict[str, Any]]:
-        """
-        Converts the metadata to a filter format, based on its tags.
-
-        Args:
-            powerset (bool): If True, generates filters based on the powerset of tags; otherwise, uses tag combinations.
-
-        Returns:
-            Optional[Dict[str, Any]]: A dictionary representing the filter criteria, or None if no tags are defined.
-        """
-        tags_filter = self.tags.generate_powerset_with_permutations(
-        ) if powerset else self.tags.priority_based_permutations()
-        if not self.tags.get_tags():
-            return None
-        return {"tags": tags_filter}
+        return self.tags.to_filter(powerset)
 
     def to_dict(self) -> Dict[str, Any]:
         """

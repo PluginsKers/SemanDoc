@@ -407,8 +407,10 @@ class VectorStore:
             filter = filter.to_filter(powerset)
 
         score_threshold = kwargs.get("score_threshold")
+        threshold_offset = 0.01
         if score_threshold is not None:
-            kwargs.update({"score_threshold": score_threshold + 0.12})
+            kwargs.update(
+                {"score_threshold": score_threshold + threshold_offset})
 
         embeddings = self.embedding._embed_texts([query])
         docs_and_scores = self.similarity_search_with_score_by_vector(

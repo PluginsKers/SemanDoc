@@ -12,9 +12,14 @@ class ChatResource(Resource):
 
     def get(self):
         self.parser.add_argument(
-            'query', type=str, required=True, help='No query provided', location='args')
+            'query', type=str, required=True, help='No query provided', location='args'
+        )
         self.parser.add_argument(
-            'dep_name', type=str, required=True, help='No dep_name provided', location='args')
+            'dep_name', type=str, required=True, help='No dep_name provided', location='args'
+        )
         args = self.parser.parse_args()
         response = chat_with_kb(**args)
-        return {'data': response}
+
+        return {
+            'data': response
+        }
