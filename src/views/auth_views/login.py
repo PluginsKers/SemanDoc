@@ -20,10 +20,10 @@ class LoginResource(AuthResource):
         try:
             token, userdata = authenticate(**args)
 
-            del userdata["password"]
-            del userdata["id"]
-
             if token:
+
+                del userdata["password"]
+                del userdata["id"]
                 return {
                     "message": app_manager.RESPONSE_LOGIN_SUCCESS,
                     "token": token,
