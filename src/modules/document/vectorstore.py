@@ -88,9 +88,8 @@ class VectorStore:
         self.docstore: Dict[str, Document] = {}
         self.index_to_docstore_id = {}
         self.gpu_resources = None
+        self._lock = threading.Lock()
         self.index = self._load_or_create_index()
-
-        self._lock = threading.Lock()  # Initialize lock for synchronization
 
     def _load_or_create_index(self, index_name: str = "index"):
         path = Path(self.folder_path)
@@ -99,22 +98,23 @@ class VectorStore:
         _faiss_index_path = str(path / f"{index_name}.faiss")
         _index_path = str(path / f"{index_name}.pkl")
 
-        if os.path.exists(_faiss_index_path) and os.path.exists(_index_path):
-            index_cpu = faiss.read_index(_faiss_index_path)
-            with open(_index_path, "rb") as f:
-                self.docstore, self.index_to_docstore_id = pickle.load(f)
-        else:
-            d = self.embedding.model.get_sentence_embedding_dimension()
-            index_cpu = faiss.IndexFlatL2(d)
-            self.docstore = {}
-            self.index_to_docstore_id = {}
+        with self._lock:
+            if os.path.exists(_faiss_index_path) and os.path.exists(_index_path):
+                index_cpu = faiss.read_index(_faiss_index_path)
+                with open(_index_path, "rb") as f:
+                    self.docstore, self.index_to_docstore_id = pickle.load(f)
+            else:
+                d = self.embedding.model.get_sentence_embedding_dimension()
+                index_cpu = faiss.IndexFlatL2(d)
+                self.docstore = {}
+                self.index_to_docstore_id = {}
 
-        if self.device == "cuda":
-            self.gpu_resources = faiss.StandardGpuResources()
-            logger.info("Loaded index to GPU.")
-            return faiss.index_cpu_to_gpu(self.gpu_resources, 0, index_cpu)
-        else:
-            return index_cpu
+            if self.device == "cuda":
+                self.gpu_resources = faiss.StandardGpuResources()
+                logger.info("Loaded index to GPU.")
+                return faiss.index_cpu_to_gpu(self.gpu_resources, 0, index_cpu)
+            else:
+                return index_cpu
 
     def _save_worker(self):
         """
@@ -308,7 +308,6 @@ class VectorStore:
         docs: List[Document],
         ids: Optional[List[str]] = None,
         similarity_threshold: float = 0.9
-
     ) -> List[Document]:
         embeds = self.embedding._embed_texts(
             [doc.page_content for doc in docs]
@@ -316,6 +315,10 @@ class VectorStore:
 
         embeds = np.asarray(embeds, dtype=np.float32)
         ids = ids or [str(uuid.uuid4()) for _ in docs]
+
+        _len_check_if_sized(embeds, docs, 'embeds', 'docs')
+        _len_check_if_sized(ids, docs, 'ids', 'docs')
+
         added_docs = []
 
         for i, doc in enumerate(docs):
@@ -337,20 +340,21 @@ class VectorStore:
                     break
 
             if not is_duplicate:
-                if self.device == "cuda":
-                    index_cpu = faiss.index_gpu_to_cpu(self.index)
-                    index_cpu.add(np.array([embed], dtype=np.float32))
-                    self.index = faiss.index_cpu_to_gpu(
-                        self.gpu_resources, 0, index_cpu)
-                    torch.cuda.synchronize()
-                else:
-                    self.index.add(np.array([embed], dtype=np.float32))
+                with self._lock:
+                    if self.device == "cuda":
+                        index_cpu = faiss.index_gpu_to_cpu(self.index)
+                        index_cpu.add(np.array([embed], dtype=np.float32))
+                        self.index = faiss.index_cpu_to_gpu(
+                            self.gpu_resources, 0, index_cpu)
+                        torch.cuda.synchronize()
+                    else:
+                        self.index.add(np.array([embed], dtype=np.float32))
 
-                doc_id = ids[i]
-                self.docstore[doc_id] = doc
-                self.index_to_docstore_id[len(
-                    self.index_to_docstore_id)] = doc_id
-                added_docs.append(doc)
+                    doc_id = ids[i]
+                    self.docstore[doc_id] = doc
+                    self.index_to_docstore_id[len(
+                        self.index_to_docstore_id)] = doc_id
+                    added_docs.append(doc)
 
         return added_docs
 

@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Dict, List, Tuple, Optional, Union
+import re
+from typing import Any, Dict, List, Optional
 
 from src import app_manager
 from src.modules.document import (
@@ -130,11 +131,12 @@ def add_documents(
     documents: List[Document],
     **kwargs
 ) -> List[Document]:
-    return _add_documents_helper(documents, **kwargs)
+    return _add_documents_helper(documents, True, **kwargs)
 
 
 def _add_documents_helper(
     documents: List[Document],
+    bundle_errors: bool = False,
     **kwargs
 ) -> List[Document]:
     user_id = kwargs.get('user_id')
@@ -149,15 +151,33 @@ def _add_documents_helper(
         raise ValueError("User does not have permission to add documents.")
 
     new_documents = []
+    errors = []
     for new_doc in documents:
         if len(new_doc.metadata.tags.get_tags()) < 1:
-            raise ValueError(
-                "Each document must have at least one tag in its metadata.")
+            if not bundle_errors:
+                raise ValueError(
+                    "Each document must have at least one tag in its metadata.")
+            else:
+                errors.append(new_doc)
+                continue
+
+        seq_len = len(re.findall(r'[\u4e00-\u9fff]', new_doc.page_content))
+
+        if seq_len <= 16:
+            if not bundle_errors:
+                raise ValueError(
+                    "At least 16 characters are required.")
+            else:
+                errors.append(new_doc)
+                continue
+
         new_documents.append(new_doc)
 
     try:
         store = app_manager.get_vector_store()
+
         added_documents = store.add_documents(new_documents)
+
         if len(added_documents) <= 0:
             raise RuntimeError(
                 "Failed to add documents to the VectorStore.")

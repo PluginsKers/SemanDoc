@@ -1,4 +1,3 @@
-import json
 from flask_restful import Resource, reqparse
 
 from src import app_manager, include_user_id
