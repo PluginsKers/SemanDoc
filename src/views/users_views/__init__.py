@@ -1,1 +1,1 @@
-from .user_views import *
+from .user import *

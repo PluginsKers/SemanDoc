@@ -68,7 +68,7 @@ def create_user(username: str, password: str, role: int, nickname: str = "User",
         if not success:
             logger.error(f"Failed to add user: {message}")
             raise ValueError(f"Failed to add user: {message}")
-        new_user_info = user_db.get_user(username)
+        new_user_info = user_db.get_user_by_username(username)
         if new_user_info is None:
             logger.error(f"Failed to retrieve user after creation: {message}")
             raise ValueError(

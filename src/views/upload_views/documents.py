@@ -46,7 +46,7 @@ class DocumentUploadResource(Resource):
                 processed_data = process_excel_file(filepath)
 
                 if not processed_data:
-                    return {"message": app_manager.RESPONSE_DOCUMENT_ADD_FAILED}, 400
+                    return {"message": app_manager.RESPONSE_DOCUMENT_ADD_FAILED + "-1"}, 404
 
                 # Initialize counters for statistics
                 success_count = 0
@@ -71,7 +71,7 @@ class DocumentUploadResource(Resource):
                         }
                     }, 200
                 else:
-                    return {"message": app_manager.RESPONSE_DOCUMENT_ADD_FAILED}, 400
+                    return {"message": app_manager.RESPONSE_DOCUMENT_ADD_FAILED}, 404
             else:
                 return {"message": app_manager.RESPONSE_DOCUMENT_ADD_FAILED}, 400
         except Exception as e:

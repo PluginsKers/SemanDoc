@@ -244,7 +244,7 @@ class VectorStore:
 
     def remove_documents_by_id(
         self, target_id_list: Optional[List[str]]
-    ) -> Tuple[int, int]:
+    ) -> List[Document]:
         if target_id_list is None:
             self.docstore = {}
             self.index_to_docstore_id = {}
@@ -263,6 +263,8 @@ class VectorStore:
         ]
         n_removed = len(index_ids)
         n_total = self.index.ntotal
+        removed_documents = [self.docstore[d_id]
+                             for d_id in target_id_list if d_id in self.docstore]
 
         if self.device == "cuda":
             index_cpu = faiss.index_gpu_to_cpu(self.index)
@@ -279,9 +281,9 @@ class VectorStore:
         self.index_to_docstore_id = {
             i: d_id for i, d_id in enumerate(self.index_to_docstore_id.values())
         }
-        return n_removed, n_total
+        return removed_documents
 
-    def delete_documents_by_ids(self, target_ids: List[int]) -> Tuple[int, int]:
+    def delete_documents_by_ids(self, target_ids: List[int]) -> List[Document]:
         if target_ids is None or len(target_ids) < 1:
             raise ValueError("Parameter target_ids cannot be empty.")
 

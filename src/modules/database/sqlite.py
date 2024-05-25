@@ -178,30 +178,30 @@ class DatabaseManager:
             FOREIGN KEY (role_id) REFERENCES roles(id));
         """
 
-        document_history_table_sql = """
-        CREATE TABLE IF NOT EXISTS document_history (
+        documents_records_table_sql = """
+        CREATE TABLE IF NOT EXISTS documents_records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            document_id INTEGER NOT NULL,
+            document_id INTEGER,
             editor_id INTEGER NOT NULL,
             edit_time DATETIME NOT NULL,
             edit_description TEXT,
-            FOREIGN KEY (document_id) REFERENCES documents(id),
             FOREIGN KEY (editor_id) REFERENCES users(id));
         """
 
         document_table_sql = """
         CREATE TABLE IF NOT EXISTS documents (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ids TEXT NOT NULL,
             page_content TEXT NOT NULL,
             metadata TEXT NOT NULL,
-            UNIQUE(page_content, metadata)
+            UNIQUE(ids, page_content, metadata)
         );
         """
 
         self.execute_query(roles_table_sql)
         self.execute_query(user_table_sql)
         self.execute_query(document_table_sql)
-        self.execute_query(document_history_table_sql)
+        self.execute_query(documents_records_table_sql)
 
         self._initialize_default_user()
         self._initialize_default_roles()

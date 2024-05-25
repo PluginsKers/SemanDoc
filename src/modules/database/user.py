@@ -201,7 +201,7 @@ class User(DatabaseManager):
             logger.error(f"Failed to add user: {e}")
             return False, "Failed to add user."
 
-    def get_user(self, username: str) -> Optional[dict]:
+    def get_user_by_username(self, username: str) -> Optional[dict]:
         """
         Retrieves user information by username, excluding the password.
 

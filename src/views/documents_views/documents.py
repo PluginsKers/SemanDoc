@@ -40,7 +40,7 @@ class DocumentsResource(Resource):
 
             documents = get_documents(**args, **kwargs)
             return {
-                "message": app_manager.RESPONSE_DOCUMENT_SEARCH_SUCCESS, "data": documents
+                "message": app_manager.RESPONSE_DOCUMENT_SEARCH_SUCCESS, "data": [d.to_dict() for d in documents]
             }, 200
         except Exception as e:
             return {
@@ -54,13 +54,13 @@ class DocumentsResource(Resource):
         )
         args = self.parser.parse_args()
         try:
-            deletion_result = delete_documents_by_ids(
+            deleted_documents = delete_documents_by_ids(
                 args['ids'], **kwargs
             )
-            if isinstance(deletion_result, tuple) and deletion_result[0] != 0:
+            if isinstance(deleted_documents, list) and len(deleted_documents) > 0:
                 return {
-                    "message": app_manager.RESPONSE_DOCUMENT_REMOVE_SUCCESS + f" 共删除{deletion_result[0]}条",
-                    "data": deletion_result
+                    "message": app_manager.RESPONSE_DOCUMENT_REMOVE_SUCCESS + f" 共删除{len(deleted_documents)}条",
+                    "data": deleted_documents
                 }
 
             return {

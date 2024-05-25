@@ -1,8 +1,6 @@
 from flask_restful import Resource, reqparse
 
-from src.services.document_service import chat_with_kb
-from src import app_manager
-from src import include_user_id
+from src.services.chat_service import chat
 
 
 class ChatResource(Resource):
@@ -18,8 +16,18 @@ class ChatResource(Resource):
             'dep_name', type=str, required=True, help='No dep_name provided', location='args'
         )
         args = self.parser.parse_args()
-        response = chat_with_kb(**args)
 
-        return {
-            'data': response
-        }
+        try:
+            success, data = chat(**args)
+            if success:
+                return {
+                    'data': data
+                }
+            else:
+                return {
+                    'message': None
+                }, 400
+        except Exception as e:
+            return {
+                "message": f"{str(e)}"
+            }, 400

@@ -1,14 +1,11 @@
 import logging
 from typing import Any, Dict, List, Tuple, Optional, Union
 
-import numpy as np
-
 from src import app_manager
 from src.modules.document import (
     Document,
     Metadata
 )
-from src.modules.document.vectorstore import VectorStoreError
 from src.modules.database import Document as Docdb
 from src.modules.database.user import User, Role
 
@@ -53,7 +50,6 @@ def find_and_optimize_documents(query: str, tags: Optional[List[str]] = None) ->
     current_attempt = 0
     score_threshold = initial_score_threshold
 
-    # Dynamically adjust score threshold to find at least the minimum required documents
     while current_attempt < attempt_limit and len(found_documents) < min_documents_required:
         found_documents = app_manager.get_vector_store().search(
             query=query,
@@ -67,16 +63,14 @@ def find_and_optimize_documents(query: str, tags: Optional[List[str]] = None) ->
             score_threshold + score_adjustment_step, max_score_threshold)
         current_attempt += 1
 
-    # Rerank the found documents based on additional criteria, if needed
     optimized_documents = app_manager.get_reranker(
     ).rerank_documents(found_documents, query)
-
     return optimized_documents
 
 
 def get_documents(
     query: str, k: int = 6, filter: Optional[Dict[str, Any]] = None, **kwargs
-) -> List[dict]:
+) -> List[Document]:
     """
     Searches for documents based on the provided query string, applying optional filters and additional parameters.
 
@@ -109,10 +103,10 @@ def get_documents(
         filter = Metadata(**filter)
 
     docs = app_manager.get_vector_store().search(
-        query=query,
-        k=k,
-        filter=filter,
-        **kwargs  # Additional search configuration passed directly to the query method
+        query,
+        k,
+        filter,
+        **kwargs
     )
 
     # Optional re-ranking of documents based on custom logic
@@ -121,8 +115,7 @@ def get_documents(
         docs, query
     )
 
-    # Converting search results to a list of dictionaries for the response
-    return [doc.to_dict() for doc in reranked_docs]
+    return reranked_docs
 
 
 def add_document(
@@ -166,13 +159,14 @@ def _add_documents_helper(
         store = app_manager.get_vector_store()
         added_documents = store.add_documents(new_documents)
         if len(added_documents) <= 0:
-            raise VectorStoreError(
+            raise RuntimeError(
                 "Failed to add documents to the VectorStore.")
 
         store.save_index()
 
         for added_document in added_documents:
             doc_db.add_document(
+                added_document.metadata.ids,
                 added_document.page_content,
                 str(added_document.metadata.to_dict()),
                 user_id
@@ -188,7 +182,7 @@ def _add_documents_helper(
 def delete_documents_by_ids(
     ids_to_delete: List[str],
     **kwargs
-) -> Union[Tuple[int, int], str]:
+) -> List[Document]:
     user_id = kwargs.get('user_id')
     if user_id is None:
         raise ValueError("User ID is required for deleting a document.")
@@ -203,19 +197,25 @@ def delete_documents_by_ids(
     try:
         store = app_manager.get_vector_store()
 
-        ret = store.delete_documents_by_ids(ids_to_delete)
+        results = store.delete_documents_by_ids(ids_to_delete)
 
         store.save_index()
 
+        for removal_document in results:
+            doc_db.delete_document_by_ids(
+                removal_document.metadata.ids,
+                kwargs.get('user_id')
+            )
+
         logger.info("Document removed successfully.")
 
-        return ret
+        return [d.to_dict() for d in results]
     except Exception as e:
         logger.error("An error occurred while deleting a document: %s", str(e))
         raise  # Rethrowing the exception after logging
 
 
-def update_document(
+def update_document_by_ids(
     ids: str,
     data: dict[str, Any],
     **kwargs
@@ -233,10 +233,9 @@ def update_document(
 
     try:
         store = app_manager.get_vector_store()
-        ret = store.delete_documents_by_ids([ids])
-        if isinstance(ret, tuple):
-            n_removed, _ = ret
-            if n_removed == 0:
+        d_ret = store.delete_documents_by_ids([ids])
+        if isinstance(d_ret, list):
+            if len(d_ret) == 0:
                 raise ValueError(
                     f"No document found with ID: {ids}. Unable to update.")
 
@@ -249,15 +248,20 @@ def update_document(
             new_documents = Document(page_content, metadata)
             results = store.add_documents([new_documents])
             if len(results) <= 0:
-                raise VectorStoreError(
+                raise RuntimeError(
                     "Failed to add document to the database.")
 
-            for new_doc in results:
+            for new_document in results:
+                doc_db.delete_document_by_ids(
+                    ids,
+                    kwargs.get('user_id')
+                )
                 doc_db.add_document(
-                    new_doc.page_content,
-                    str(new_doc.metadata.to_dict()),
+                    new_document.metadata.ids,
+                    new_document.page_content,
+                    str(new_document.metadata.to_dict()),
                     kwargs.get('user_id'),
-                    'Document updated.'
+                    'Document updated after delete.'
                 )
             store.save_index()
 
@@ -269,33 +273,16 @@ def update_document(
         raise  # Rethrowing the exception after logging
 
 
-def chat_with_kb(query: str, dep_name: str = None) -> str:
-    if not app_manager.LLM_MODEL_PATH:
-        return app_manager.RESPONSE_LLM_MODEL_PATH_NOT_FOUND
+def get_documents_records(**kwargs) -> list:
+    user_id = kwargs.get('user_id')
+    if user_id is None:
+        raise ValueError(
+            "User ID is required for getting the document records.")
 
-    def build_history(reranked_documents: List[Document]) -> List[Dict[str, str]]:
-        if reranked_documents:
-            document_texts = "".join(
-                doc.page_content for doc in reranked_documents)
-            system_prompt = app_manager.LLM_SYSTEM_PROMPT.format(
-                document_texts)
-        else:
-            system_prompt = app_manager.LLM_SYSTEM_PROMPT.format(
-                app_manager.LLM_SYSTEM_PROMPT_FILLNON)
+    docs_records = doc_db.get_documents_records()
 
-        _history = [{"role": "system", "content": system_prompt}]
+    for j in docs_records:
+        j['document'] = doc_db.get_document_by_id(j['document_id'])
+        j['editor'] = user_db.get_user_by_id(j['editor_id'])
 
-        return _history
-
-    docs = find_and_optimize_documents(query, [dep_name])
-    if len(docs) > 0:
-        history = build_history(docs)
-        model = app_manager.get_llm_model()
-        response = model.get_response(
-            query,
-            app_manager.LLM_CHAT_PROMPT,
-            history
-        )
-        return response
-
-    return '暂未找到任何相关信息！'
+    return docs_records

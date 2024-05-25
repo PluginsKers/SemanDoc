@@ -5,7 +5,7 @@ from src import app_manager, include_user_id
 from src.services.document_service import (
     add_document,
     delete_documents_by_ids,
-    update_document
+    update_document_by_ids
 )
 
 
@@ -48,7 +48,7 @@ class DocumentResource(Resource):
         )
         args = self.parser.parse_args()
 
-        updated_document = update_document(id, args, **kwargs)
+        updated_document = update_document_by_ids(id, args, **kwargs)
 
         if updated_document is None:
             return {"message": app_manager.RESPONSE_DOCUMENT_UPDATE_FAILED}, 404
@@ -61,11 +61,11 @@ class DocumentResource(Resource):
     @include_user_id
     def delete(self, id, **kwargs):
         try:
-            deletion_result = delete_documents_by_ids([id], **kwargs)
-            if isinstance(deletion_result, tuple) and deletion_result[0] != 0:
+            deleted_documents = delete_documents_by_ids([id], **kwargs)
+            if isinstance(deleted_documents, list) and len(deleted_documents) > 0:
                 return {
                     "message": app_manager.RESPONSE_DOCUMENT_REMOVE_SUCCESS,
-                    "data": deletion_result
+                    "data": deleted_documents
                 }
 
             return {"message": app_manager.RESPONSE_DOCUMENT_REMOVE_FAILED}, 404

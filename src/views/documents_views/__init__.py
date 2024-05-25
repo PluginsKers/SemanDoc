@@ -1,2 +1,3 @@
-from .document_views import *
-from .documents_views import *
+from .document import *
+from .documents import *
+from .records import *

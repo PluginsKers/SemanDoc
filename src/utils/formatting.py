@@ -20,7 +20,7 @@ def document_formatting(doc: Document) -> Tuple[bool, Document]:
         # Convert times to datetime objects
         def parse_time(time_str: Optional[str]) -> datetime:
             if not time_str:
-                return timezone.localize(datetime.now())
+                return pytz.timezone('Asia/Shanghai').localize(datetime.now())
             time_str = time_str.replace(
                 '年', '/').replace('月', '/').replace('日', '').strip()
             time_str = time_str.replace(
