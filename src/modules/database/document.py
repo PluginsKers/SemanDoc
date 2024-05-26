@@ -19,7 +19,7 @@ class Document(DatabaseManager):
         """
         super().__init__(db.db_path)
 
-    def add_document(self, ids: str, page_content: str, metadata: str, user_id: Optional[int] = None, desc: str = 'Document added.') -> bool:
+    def add_document(self, ids: str, page_content: str, metadata: str, user_id: Optional[int] = None, desc: str = 'Added.') -> bool:
         """
         Adds a new document to the database along with an initial document history record.
 
@@ -118,7 +118,7 @@ class Document(DatabaseManager):
             logger.error(f"Failed to get document with IDs {ids}: {e}")
             raise
 
-    def delete_document_by_id(self, id: int, user_id: Optional[int] = None, desc: str = 'Document deleted.') -> bool:
+    def delete_document_by_id(self, id: int, user_id: Optional[int] = None, desc: str = 'Deleted.') -> bool:
         """
         Delete a document by its ID and log the deletion in document history.
 
@@ -158,7 +158,7 @@ class Document(DatabaseManager):
                     f"Failed to rollback transaction: {rollback_error}")
             return False
 
-    def delete_document_by_ids(self, ids: str, user_id: Optional[int] = None, desc: str = 'Document deleted.') -> bool:
+    def delete_document_by_ids(self, ids: str, user_id: Optional[int] = None, desc: str = 'Deleted.') -> bool:
         """
         Delete a document by its UUID4 and log the deletion in document history.
 

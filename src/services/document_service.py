@@ -272,16 +272,12 @@ def update_document_by_ids(
                     "Failed to add document to the database.")
 
             for new_document in results:
-                doc_db.delete_document_by_ids(
-                    ids,
-                    kwargs.get('user_id')
-                )
                 doc_db.add_document(
                     new_document.metadata.ids,
                     new_document.page_content,
                     str(new_document.metadata.to_dict()),
                     kwargs.get('user_id'),
-                    'Document updated after delete.'
+                    'Updated.'
                 )
             store.save_index()
 
