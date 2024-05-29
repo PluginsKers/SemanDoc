@@ -1,3 +1,4 @@
+from itertools import combinations, permutations
 import time
 
 import uuid
@@ -17,13 +18,13 @@ def uuid_to_sha256(uuid_str: str) -> str:
     Converts a UUID string into a SHA-256 hash.
 
     Args:
-    - uuid_str (str): A valid UUID string.
+        uuid_str (str): A valid UUID string.
 
     Returns:
-    Str: A hexadecimal string representing the SHA-256 hash of the UUID.
+        str: A hexadecimal string representing the SHA-256 hash of the UUID.
 
     Raises:
-    ValueError: If the input string is not a valid UUID.
+        ValueError: If the input string is not a valid UUID.
     """
     try:
         # This ensures the UUID is valid; if not, it raises a ValueError.
@@ -42,7 +43,7 @@ class Tags:
     A class to manage a collection of unique tags.
 
     Attributes:
-    tags (List[str]): A list of tags associated with an instance.
+        tags (List[str]): A list of tags associated with an instance.
     """
 
     def __init__(self, tags: Optional[List[str]] = None):
@@ -50,38 +51,50 @@ class Tags:
         Initializes the Tags object with an optional list of tags.
 
         Args:
-        - tags (Optional[List[str]]): An initial list of tags. Defaults to None.
+            tags (Optional[List[str]]): An initial list of tags. Defaults to None.
         """
-        self.tags: Set[str] = set(tags) if tags is not None else set()
+        self.tags: List[str] = tags if tags is not None else []
 
     def add_tag(self, tag: str):
         """
         Adds a new tag to the tags set if it's not already present.
 
         Args:
-        - tag (str): The tag to add.
+            tag (str): The tag to add.
         """
-        self.tags.add(tag)
+        self.tags.append(tag)
+
+    def add_tags(self, tags: List[str]):
+        """
+        Adds a new tag to the tags set if it's not already present.
+
+        Args:
+            tag (str): The tag to add.
+        """
+        for tag in tags:
+            self.add_tag(tag)
 
     def remove_tag(self, tag: str):
         """
         Removes a tag from the tags set if it exists.
 
         Args:
-        - tag (str): The tag to remove.
+            tag (str): The tag to remove.
         """
-        self.tags.discard(
-            tag)  # Using discard to avoid KeyError if tag doesn't exist
+        try:
+            self.tags.remove(tag)
+        except ValueError:
+            pass
 
     def has_tag(self, tag: str) -> bool:
         """
         Checks if a tag is present in the tags set.
 
         Args:
-        - tag (str): The tag to check for.
+            tag (str): The tag to check for.
 
         Returns:
-        Bool: True if the tag is present, False otherwise.
+        True if the tag is present, False otherwise.
         """
         return tag in self.tags
 
@@ -90,39 +103,180 @@ class Tags:
         Returns the list of tags.
 
         Returns:
-        List[str]: A list of tags.
+            List[str]: A list of tags.
         """
-        return list(self.tags)
+        return self.tags
 
-    def get_powerset(self) -> List[List[str]]:
+    def generate_powerset_with_permutations(self) -> List[List[str]]:
         """
-        Generates the powerset of the tags set.
+        Generates the powerset of the given list, including all unique permutations
+        of each subset.
 
         Returns:
-        List[List[str]]: A list of lists, where each sublist is a combination
-        of tags representing a subset of the powerset.
+            List[List[str]]: A list of lists, where each sublist is a unique permutation
+            of elements representing a subset of the powerset.
         """
-        # Converting the set to a list to support indexing
-        tags_list = list(self.tags)
+        # Generate the initial powerset
         result = [[]]
-        for tag in tags_list:
-            new_subsets = [subset + [tag] for subset in result]
+        for element in self.tags:
+            new_subsets = [subset + [element] for subset in result]
             result.extend(new_subsets)
-        return result
 
-    def get_combinations(self) -> List[List[str]]:
+        # Generate all unique permutations for each subset in the powerset
+        permuted_result = set()
+        for subset in result:
+            for perm in permutations(subset):
+                permuted_result.add(perm)
+
+        # Convert each tuple back to a list and sort the result by length and lexicographically
+        final_result = [list(perm) for perm in sorted(
+            permuted_result, key=lambda x: (len(x), x))]
+
+        return final_result
+
+    def priority_based_permutations(self) -> List[List[str]]:
         """
-        Generates all unique combinations of two tags from the tags set.
+        Generates all permutations based on tag priority. This method focuses on generating permutations
+        that include all tags (n elements) and, when n > 2, permutations with one less tag (n-1 elements),
+        but only those permutations that start with the highest priority tag or the second highest priority tag are included.
 
         Returns:
-        List[List[str]]: A list of lists, where each sublist is a combination of two tags.
+            List[List[str]]: A list of permutations, where each permutation is a list of tags.
+
+        Description:
+            - The method first determines the length of the tag set (self.tags) and generates all combinations for that length (n) and n-1 when n > 2.
+            - For each combination, it generates all possible permutations.
+            - It then filters out those permutations that start with either the highest priority or the second highest priority tag.
+            It is assumed that the tag list is already sorted in some manner to reflect their priority.
+            - Finally, the method ensures each permutation in the result set is unique by removing any duplicates.
+
+        Note:
+            - This method assumes the first element in the `self.tags` list has the highest priority and the second element has the second highest priority.
+            - The behavior of this method might not work as expected if there are fewer than two elements in the tag list, as it requires at least two elements to compare priorities.
         """
-        tags_list = list(self.tags)
         result = []
-        for i in range(len(tags_list) - 1):
-            for j in range(i + 1, len(tags_list)):
-                result.append([tags_list[i], tags_list[j]])
-        return result
+        elements = self.tags
+        n = len(elements)
+        # Generate all permutations for n and n-1 elements when n > 2
+        # Adjust range to include n-1 only if n > 2
+        for i in range(n, n - 2 if n > 2 else n - 1, -1):
+            for combination in combinations(elements, i):
+                for perm in permutations(combination):
+                    # Only add if starting with the highest priority element or the second highest
+                    if perm[0] == elements[0] or perm[0] == elements[1]:
+                        result.append(list(perm))
+
+        # Eliminate duplicates
+        final_result = []
+        for item in result:
+            if item not in final_result:
+                final_result.append(item)
+
+        return final_result
+
+    def priority_based_permutations(self) -> List[List[str]]:
+        """
+        Generates all permutations based on tag priority. This method focuses on generating permutations
+        that include all tags (n elements) and, when n > 2, permutations with one less tag (n-1 elements),
+        but only those permutations that start with the highest priority tag or the second highest priority tag are included.
+
+        Returns:
+            List[List[str]]: A list of permutations, where each permutation is a list of tags.
+
+        Description:
+            - The method first determines the length of the tag set (self.tags) and generates all combinations for that length (n) and n-1 when n > 2.
+            - For each combination, it generates all possible permutations.
+            - It then filters out those permutations that start with either the highest priority or the second highest priority tag.
+            It is assumed that the tag list is already sorted in some manner to reflect their priority.
+            - Finally, the method ensures each permutation in the result set is unique by removing any duplicates.
+
+        Note:
+            - This method assumes the first element in the `self.tags` list has the highest priority and the second element has the second highest priority.
+            - The behavior of this method might not work as expected if there are fewer than two elements in the tag list, as it requires at least two elements to compare priorities.
+        """
+        result = []
+        elements = self.tags
+        n = len(elements)
+        # Generate all permutations for n and n-1 elements when n > 2
+        # Adjust range to include n-1 only if n > 2
+        for i in range(n, n - 2 if n > 2 else n - 1, -1):
+            for combination in combinations(elements, i):
+                for perm in permutations(combination):
+                    # Only add if starting with the highest priority element or the second highest
+                    if perm[0] == elements[0] or perm[0] == elements[1]:
+                        result.append(list(perm))
+
+        # Eliminate duplicates
+        final_result = []
+        for item in result:
+            if item not in final_result:
+                final_result.append(item)
+
+        return final_result
+
+    def priority_based_permutations(self) -> List[List[str]]:
+        """
+        Generates all permutations based on tag priority. This method focuses on generating permutations
+        that include all tags (n elements) and, when n > 2, permutations with one less tag (n-1 elements),
+        but only those permutations that start with the highest priority tag or the second highest priority tag are included.
+
+        Additionally, when there are more than one tag, it includes permutations of single tags.
+
+        Returns:
+            List[List[str]]: A list of permutations, where each permutation is a list of tags.
+
+        Description:
+            - The method first determines the length of the tag set (self.tags) and generates all combinations for that length (n) and n-1 when n > 2.
+            - For each combination, it generates all possible permutations.
+            - It then filters out those permutations that start with either the highest priority or the second highest priority tag.
+            It is assumed that the tag list is already sorted in some manner to reflect their priority.
+            - Finally, the method ensures each permutation in the result set is unique by removing any duplicates.
+            - If there are more than one tag, it also adds each tag as a single-element list to the result.
+
+        Note:
+            - This method assumes the first element in the `self.tags` list has the highest priority and the second element has the second highest priority.
+            - The behavior of this method might not work as expected if there are fewer than two elements in the tag list, as it requires at least two elements to compare priorities.
+        """
+        result = []
+        elements = self.tags
+        n = len(elements)
+
+        # Generate all permutations for n and n-1 elements when n > 2
+        for i in range(n, n - 2 if n > 2 else n - 1, -1):
+            for combination in combinations(elements, i):
+                for perm in permutations(combination):
+                    # Only add if starting with the highest priority element or the second highest
+                    if perm[0] == elements[0] or perm[0] == elements[1]:
+                        result.append(list(perm))
+
+        # Eliminate duplicates
+        final_result = []
+        for item in result:
+            if item not in final_result:
+                final_result.append(item)
+
+        # Add single elements if len(self.tags) > 1
+        if len(self.tags) > 1:
+            for element in self.tags:
+                final_result.append([element])
+
+        return final_result
+
+    def to_filter(self, powerset: bool = True) -> Optional[Dict[str, Any]]:
+        """
+        Converts the metadata to a filter format, based on its tags.
+
+        Args:
+            powerset (bool): If True, generates filters based on the powerset of tags; otherwise, uses tag combinations.
+
+        Returns:
+            Optional[Dict[str, Any]]: A dictionary representing the filter criteria, or None if no tags are defined.
+        """
+        tags_filter = self.generate_powerset_with_permutations(
+        ) if powerset else self.priority_based_permutations()
+        if not self.get_tags():
+            return None
+        return {"tags": tags_filter}
 
 
 class Metadata:
@@ -165,26 +319,14 @@ class Metadata:
         return self.ids
 
     def to_filter(self, powerset: bool = True) -> Optional[Dict[str, Any]]:
-        """
-        Converts the metadata to a filter format, based on its tags.
-
-        Args:
-        - powerset (bool): If True, generates filters based on the powerset of tags; otherwise, uses tag combinations.
-
-        Returns:
-        Optional[Dict[str, Any]]: A dictionary representing the filter criteria, or None if no tags are defined.
-        """
-        tags_filter = self.tags.get_powerset() if powerset else self.tags.get_combinations()
-        if not self.tags.get_tags():
-            return None
-        return {"tags": tags_filter}
+        return self.tags.to_filter(powerset)
 
     def to_dict(self) -> Dict[str, Any]:
         """
         Converts the metadata into a dictionary format.
 
         Returns:
-        Dict[str, Any]: A dictionary representation of the metadata.
+            Dict[str, Any]: A dictionary representation of the metadata.
         """
         return {
             "ids": self.ids,
@@ -201,8 +343,8 @@ class Document:
     Represents a document with content and associated metadata.
 
     Attributes:
-    - page_content (str): The content of the document.
-    - metadata (Metadata): The metadata associated with the document.
+        page_content (str): The content of the document.
+        metadata (Metadata): The metadata associated with the document.
     """
 
     def __init__(self, page_content: str, metadata: Union[Dict[str, Any], Metadata] = None):
@@ -219,7 +361,7 @@ class Document:
         Determines if the document is still valid based on its metadata's validity period.
 
         Returns:
-        bool: True if the document is valid, False otherwise.
+            bool: True if the document is valid, False otherwise.
         """
         current_time = time.time()
         # Handle the case where valid_time is indefinite (-1).
@@ -233,6 +375,6 @@ class Document:
         Converts the document into a dictionary format, including its content and metadata.
 
         Returns:
-        Dict[str, Any]: A dictionary representation of the document.
+            Dict[str, Any]: A dictionary representation of the document.
         """
         return {"page_content": self.page_content, "metadata": self.metadata.to_dict()}

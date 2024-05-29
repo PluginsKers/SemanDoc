@@ -5,15 +5,16 @@ class BaseConfig:
     # 免鉴权的地址
     UNPROTECTED_ROUTES = [
         "/api/v1/auth/login",
-        "/api/wecom/"
+        "/api/v1/wecom/"
     ]
 
     MODEL_PATH = "BAAI/bge-m3"  # 配置你的embedding模型地址
     LLM_MODEL_PATH = "THUDM/chatglm3-6b"  # 配置大语言模型路径
     RERANKER_MODEL_PATH = "BAAI/bge-reranker-large"  # 配置重排序模型路径
 
-    DB_PATH = "./data/database/sqlite.db"  # 配置进行数据备份和记录用户信息的本地数据库文件，默认：./data/database/sqlite.db
+    DB_PATH = "./data/database"  # 配置进行数据备份和记录用户信息的本地数据库路径，默认：./data/database
     INDEX_PATH = "./data/store"  # 配置你向量文件存储路径，默认：./data/store
+    TMP_FILE_PATH = "./data/files"  # 配置你临时文件存储路径，默认：./data/files
 
     # 企业微信相关配置项，留空默认不开始该部分
     # AGENT_ID="" # 企业微信，应用的ID
@@ -52,12 +53,23 @@ class BaseConfig:
 
     # 返回内容配置项
     # 该部分不允许留空
+    RESPONSE_USER_UPDATE_SUCCESS = "用户信息更新成功"
+    RESPONSE_USER_UPDATE_FAILED = "用户信息更新失败"
+    RESPONSE_USER_CREATE_SUCCESS = "用户创建成功"
+    RESPONSE_USER_CREATE_FAILED = "用户创建失败"
+    RESPONSE_USER_QUERY_SUCCESS = "用户查询成功"
+    RESPONSE_USER_QUERY_FAILED = "用户查询失败"
+    RESPONSE_USER_DELETE_SUCCESS = "用户删除成功"
+    RESPONSE_USER_DELETE_FAILED = "用户删除失败"
     RESPONSE_DOCUMENT_SEARCH_SUCCESS = "文档检索成功"
     RESPONSE_DOCUMENT_UPDATE_SUCCESS = "文档修改成功"
+    RESPONSE_DOCUMENTS_RECORDS_LOAD_SUCCESS = "记录加载成功"
+    RESPONSE_DOCUMENTS_RECORDS_LOAD_FAILED = "记录加载失败"
     RESPONSE_DOCUMENT_UPDATE_FAIL = "文档修改失败"
     RESPONSE_DOCUMENT_REMOVE_SUCCESS = "文档删除成功"
     RESPONSE_DOCUMENT_REMOVE_FAIL = "文档删除失败"
     RESPONSE_DOCUMENT_ADD_SUCCESS = "文档添加成功"
+    RESPONSE_DOCUMENT_ADD_FAILED = "文档添加失败"
     RESPONSE_WECOM_DEFAULT = "请求成功"  # 该信息无必要不修改，仅在启用企业微信功能下生效
     RESPONSE_LOGIN_SUCCESS = "登录成功"
     RESPONSE_LOGIN_FAILED = "登录失败"

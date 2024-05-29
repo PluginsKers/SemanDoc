@@ -1,22 +1,17 @@
-from typing import Optional
+import logging
+from typing import Optional, Tuple
 
 from src import app_manager
 from src.modules.database import User
 from src.utils.security import check_password, generate_jwt_token
 
+logger = logging.getLogger(__name__)
 
-def authenticate(username: str, password: str) -> Optional[str]:
-    user_db = User(app_manager.get_database_instance())
-    udata = user_db.get_user(username)
-    if udata is None:
-        return None
-
-    if udata and check_password(udata['password'], password):
-        return generate_jwt_token(username)
-    return None
+user_db = User(app_manager.get_database_instance())
 
 
-def create_user(username: str, password: str, nickname: str = "Test User"):
-    user_db = User(app_manager.get_database_instance())
-    result, msg = user_db.add_user(username, password, nickname)
-    return result, msg
+def authenticate(username: str, password: str) -> Tuple[Optional[str], Optional[dict]]:
+    user_data = user_db.get_user_by_username(username)
+    if user_data and check_password(user_data['password'], password):
+        return generate_jwt_token(user_data['id'], user_data['password']), user_data
+    return None, None

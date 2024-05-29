@@ -1,4 +1,5 @@
 import operator
+import torch
 import os
 import shutil
 import pickle
@@ -8,8 +9,10 @@ import logging
 import uuid
 import faiss
 import numpy as np
+import torch.nn.functional as F
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Sized, Tuple
+from concurrent.futures import ThreadPoolExecutor
 
 
 from src.modules.document.typing import Document, Metadata
@@ -31,8 +34,8 @@ def dependable_faiss_import(no_avx2: Optional[bool] = None) -> faiss:
     to load FAISS with no AVX2 optimization.
 
     Args:
-    - no_avx2: Load FAISS strictly with no AVX2 optimization
-    so that the vectorstore is portable and compatible with other devices.
+        no_avx2: Load FAISS strictly with no AVX2 optimization
+        so that the vectorstore is portable and compatible with other devices.
     """
     if no_avx2 is None and "FAISS_NO_AVX2" in os.environ:
         no_avx2 = bool(os.getenv("FAISS_NO_AVX2"))
@@ -85,7 +88,33 @@ class VectorStore:
         self.docstore: Dict[str, Document] = {}
         self.index_to_docstore_id = {}
         self.gpu_resources = None
+        self._lock = threading.Lock()
         self.index = self._load_or_create_index()
+
+    def _load_or_create_index(self, index_name: str = "index"):
+        path = Path(self.folder_path)
+        faiss = dependable_faiss_import()
+
+        _faiss_index_path = str(path / f"{index_name}.faiss")
+        _index_path = str(path / f"{index_name}.pkl")
+
+        with self._lock:
+            if os.path.exists(_faiss_index_path) and os.path.exists(_index_path):
+                index_cpu = faiss.read_index(_faiss_index_path)
+                with open(_index_path, "rb") as f:
+                    self.docstore, self.index_to_docstore_id = pickle.load(f)
+            else:
+                d = self.embedding.model.get_sentence_embedding_dimension()
+                index_cpu = faiss.IndexFlatL2(d)
+                self.docstore = {}
+                self.index_to_docstore_id = {}
+
+            if self.device == "cuda":
+                self.gpu_resources = faiss.StandardGpuResources()
+                logger.info("Loaded index to GPU.")
+                return faiss.index_cpu_to_gpu(self.gpu_resources, 0, index_cpu)
+            else:
+                return index_cpu
 
     def _save_worker(self):
         """
@@ -113,7 +142,6 @@ class VectorStore:
 
         backup_faiss_path = path / f"{index_name}_backup.faiss"
         backup_pkl_path = path / f"{index_name}_backup.pkl"
-
         original_faiss_path = path / f"{index_name}.faiss"
         original_pkl_path = path / f"{index_name}.pkl"
 
@@ -123,10 +151,13 @@ class VectorStore:
             if original_pkl_path.exists():
                 shutil.copyfile(original_pkl_path, backup_pkl_path)
 
+            self.rebuild_index()
+
             index_to_save = self.index
             if self.device == "cuda":
                 logger.info("Transferring index from GPU to CPU for saving.")
                 index_to_save = faiss.index_gpu_to_cpu(self.index)
+                torch.cuda.synchronize()  # Ensure all CUDA operations are complete
 
             faiss.write_index(index_to_save, str(original_faiss_path))
             with open(original_pkl_path, "wb") as f:
@@ -139,7 +170,7 @@ class VectorStore:
             if backup_pkl_path.exists():
                 shutil.copyfile(backup_pkl_path, original_pkl_path)
             logger.info("Restored data from backup.")
-            raise  # Re-raise the exception to indicate failure
+            raise
         finally:
             if backup_faiss_path.exists():
                 backup_faiss_path.unlink()
@@ -156,37 +187,64 @@ class VectorStore:
         logger.info(f"Queueing save operation for {index_name}.")
         self.save_tasks.put(index_name)
 
-    def _load_or_create_index(self, index_name: str = "index"):
-        path = Path(self.folder_path)
-        faiss = dependable_faiss_import()
-
-        _faiss_index_path = str(
-            path / "{index_name}.faiss".format(index_name=index_name))
-        _index_path = str(
-            path / "{index_name}.pkl".format(index_name=index_name))
-
-        if os.path.exists(_faiss_index_path) and os.path.exists(_index_path):
-            index_cpu = faiss.read_index(_faiss_index_path)
-
-            # load docstore and index_to_docstore_id
-            with open(_index_path, "rb") as f:
-                self.docstore, self.index_to_docstore_id = pickle.load(f)
-        else:
+    def rebuild_index(self):
+        """
+        Rebuilds the FAISS index based on the current state of the docstore. This is useful if the
+        embedding model has changed or if the index has become corrupted or out-of-sync with the docstore.
+        """
+        self._lock.acquire()
+        try:
+            faiss = dependable_faiss_import()
             d = self.embedding.model.get_sentence_embedding_dimension()
-            index_cpu = faiss.IndexFlatL2(d)
-            self.docstore = {}
-            self.index_to_docstore_id = {}
+            new_index_cpu = faiss.IndexFlatL2(d)
 
-        if self.device == "cuda":
-            self.gpu_resources = faiss.StandardGpuResources()
-            logger.info("Loaded index to GPU.")
-            return faiss.index_cpu_to_gpu(self.gpu_resources, 0, index_cpu)
-        else:
-            return index_cpu
+            all_docs = list(self.docstore.values())
+            all_ids = list(self.docstore.keys())
+
+            def embed_docs(docs: list[Document]):
+                return np.array(self.embedding._embed_texts(
+                    [doc.page_content for doc in docs]), dtype=np.float32)
+
+            num_threads = 12
+            chunk_size = len(all_docs) // num_threads
+            chunks = [all_docs[i:i + chunk_size]
+                      for i in range(0, len(all_docs), chunk_size)]
+            with ThreadPoolExecutor(max_workers=num_threads) as executor:
+                results = executor.map(embed_docs, chunks)
+            embeddings = np.concatenate(list(results))
+
+            def rebuild():
+                try:
+                    new_index_cpu.add(embeddings)
+                    self.index_to_docstore_id = {
+                        i: doc_id for i, doc_id in enumerate(all_ids)}
+
+                    if self.device == 'cuda':
+                        if not self.gpu_resources:
+                            self.gpu_resources = faiss.StandardGpuResources()
+                        self.index = faiss.index_cpu_to_gpu(
+                            self.gpu_resources, 0, new_index_cpu)
+                        torch.cuda.synchronize()
+                    else:
+                        self.index = new_index_cpu
+
+                    logger.info(
+                        "Index has been successfully rebuilt and reloaded.")
+                except Exception as e:
+                    logger.error(f"Error during index rebuild: {e}")
+                    raise
+                finally:
+                    self._lock.release()
+
+            threading.Thread(target=rebuild).start()
+        except Exception as e:
+            self._lock.release()
+            logger.error(f"Error initiating index rebuild: {e}")
+            raise
 
     def remove_documents_by_id(
         self, target_id_list: Optional[List[str]]
-    ) -> Tuple[int, int]:
+    ) -> List[Document]:
         if target_id_list is None:
             self.docstore = {}
             self.index_to_docstore_id = {}
@@ -205,12 +263,15 @@ class VectorStore:
         ]
         n_removed = len(index_ids)
         n_total = self.index.ntotal
+        removed_documents = [self.docstore[d_id]
+                             for d_id in target_id_list if d_id in self.docstore]
 
         if self.device == "cuda":
             index_cpu = faiss.index_gpu_to_cpu(self.index)
             index_cpu.remove_ids(np.array(index_ids, dtype=np.int64))
             self.index = faiss.index_cpu_to_gpu(
                 self.gpu_resources, 0, index_cpu)
+            torch.cuda.synchronize()
         else:
             self.index.remove_ids(np.array(index_ids, dtype=np.int64))
 
@@ -220,9 +281,9 @@ class VectorStore:
         self.index_to_docstore_id = {
             i: d_id for i, d_id in enumerate(self.index_to_docstore_id.values())
         }
-        return n_removed, n_total
+        return removed_documents
 
-    def delete_documents_by_ids(self, target_ids: List[int]) -> Tuple[int, int]:
+    def delete_documents_by_ids(self, target_ids: List[int]) -> List[Document]:
         if target_ids is None or len(target_ids) < 1:
             raise ValueError("Parameter target_ids cannot be empty.")
 
@@ -235,10 +296,18 @@ class VectorStore:
                 id_to_remove.append(_id)
         return self.remove_documents_by_id(id_to_remove)
 
+    def _cosine_similarity(self, doc1_embedding: np.ndarray, doc2_embedding: np.ndarray) -> float:
+        doc1_embedding = torch.tensor(doc1_embedding, dtype=torch.float32)
+        doc2_embedding = torch.tensor(doc2_embedding, dtype=torch.float32)
+        cos_sim = F.cosine_similarity(
+            doc1_embedding.unsqueeze(0), doc2_embedding.unsqueeze(0))
+        return cos_sim.item()
+
     def add_documents(
         self,
         docs: List[Document],
-        ids: Optional[List[str]] = None
+        ids: Optional[List[str]] = None,
+        similarity_threshold: float = 0.9
     ) -> List[Document]:
         embeds = self.embedding._embed_texts(
             [doc.page_content for doc in docs]
@@ -246,21 +315,48 @@ class VectorStore:
 
         embeds = np.asarray(embeds, dtype=np.float32)
         ids = ids or [str(uuid.uuid4()) for _ in docs]
-        if self.device == "cuda":
-            index_cpu = faiss.index_gpu_to_cpu(self.index)
-            index_cpu.add(embeds)
-            self.index = faiss.index_cpu_to_gpu(
-                self.gpu_resources, 0, index_cpu)
-        else:
-            self.index.add(embeds)
 
-        for id_, doc in zip(ids, docs):
-            self.docstore[id_] = doc
+        _len_check_if_sized(embeds, docs, 'embeds', 'docs')
+        _len_check_if_sized(ids, docs, 'ids', 'docs')
 
-        starting_len = len(self.index_to_docstore_id)
-        index_to_id = {starting_len + j: id_ for j, id_ in enumerate(ids)}
-        self.index_to_docstore_id.update(index_to_id)
-        return docs
+        added_docs = []
+
+        for i, doc in enumerate(docs):
+            embed = embeds[i]
+
+            similar_docs = self.similarity_search_with_score_by_vector(
+                embedding=embed,
+                k=2
+            )
+
+            is_duplicate = False
+            for similar_doc, score in similar_docs:
+                similar_embed = self.embedding._embed_texts(
+                    [similar_doc.page_content])[0]
+                cosine_similarity = self._cosine_similarity(
+                    embed, similar_embed)
+                if cosine_similarity > similarity_threshold:
+                    is_duplicate = True
+                    break
+
+            if not is_duplicate:
+                with self._lock:
+                    if self.device == "cuda":
+                        index_cpu = faiss.index_gpu_to_cpu(self.index)
+                        index_cpu.add(np.array([embed], dtype=np.float32))
+                        self.index = faiss.index_cpu_to_gpu(
+                            self.gpu_resources, 0, index_cpu)
+                        torch.cuda.synchronize()
+                    else:
+                        self.index.add(np.array([embed], dtype=np.float32))
+
+                    doc_id = ids[i]
+                    self.docstore[doc_id] = doc
+                    self.index_to_docstore_id[len(
+                        self.index_to_docstore_id)] = doc_id
+                    added_docs.append(doc)
+
+        return added_docs
 
     def similarity_search_with_score_by_vector(
         self,
@@ -317,8 +413,10 @@ class VectorStore:
             filter = filter.to_filter(powerset)
 
         score_threshold = kwargs.get("score_threshold")
+        threshold_offset = 0.01
         if score_threshold is not None:
-            kwargs.update({"score_threshold": score_threshold + 0.12})
+            kwargs.update(
+                {"score_threshold": score_threshold + threshold_offset})
 
         embeddings = self.embedding._embed_texts([query])
         docs_and_scores = self.similarity_search_with_score_by_vector(

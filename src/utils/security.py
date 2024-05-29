@@ -1,3 +1,4 @@
+from typing import Optional
 import jwt
 import secrets
 from datetime import datetime, timedelta
@@ -18,16 +19,17 @@ def check_password(hash: str, password: str):
     return check_password_hash(hash, password)
 
 
-def generate_jwt_token(username: str):
+def generate_jwt_token(id: int, pwd: str) -> str:
     payload = {
         "exp": datetime.utcnow() + timedelta(hours=6),  # Token expires in 6 hours
         "iat": datetime.utcnow(),
-        "sub": username,
+        "sub": id,
+        "pwd": pwd
     }
     return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
 
-def verify_jwt_token(token: str):
+def verify_jwt_token(token: str) -> Optional[int]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return payload["sub"]

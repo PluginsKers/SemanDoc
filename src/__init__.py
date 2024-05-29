@@ -2,13 +2,24 @@
 import os
 import torch
 import logging
+from flask import g
+from functools import wraps
 from typing import Optional
 
-from src.config import BaseConfig
-from src.modules.database import Database
+from config import BaseConfig
+from src.modules.database import DatabaseManager
 from src.modules.models import Reranker, LLMModel
 from src.modules.document.vectorstore import VectorStore
 from src.modules.wecom import WeComApplication
+
+
+def include_user_id(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if 'user_id' not in kwargs:
+            kwargs['user_id'] = g.user_id
+        return func(*args, **kwargs)
+    return wrapper
 
 
 class ApplicationManager(BaseConfig):
@@ -72,7 +83,7 @@ class ApplicationManager(BaseConfig):
 
         if not self.database_instance:
             self.logger.info("Initializing Database...")
-            self.database_instance = Database(self.DB_PATH)
+            self.database_instance = DatabaseManager(self.DB_PATH)
             self.logger.info("Database initialized!")
 
         if not self.reranker_model:
@@ -116,7 +127,7 @@ class ApplicationManager(BaseConfig):
         """Returns the LLM model instance."""
         return self.llm_model
 
-    def get_database_instance(self) -> Optional[Database]:
+    def get_database_instance(self) -> Optional[DatabaseManager]:
         """Returns the database instance, ensuring it's initialized."""
         assert self.database_instance is not None, "Database must be initialized before accessing it."
         return self.database_instance
