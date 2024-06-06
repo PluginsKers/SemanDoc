@@ -40,7 +40,7 @@ async def process_message(wecom_message_xml: str, **kwargs) -> None:
 
         await wecom_app.send_message_async(sender_id, response, user_msg_content, len(documents) < 1)
     except Exception as e:
-        handle_exception(e, sender_id, wecom_app)
+        await handle_exception(e, sender_id, wecom_app)
 
 
 def initialize_app_components() -> Tuple[LLMModel, WeComApplication]:
@@ -85,35 +85,21 @@ def determine_intent(user_msg_content: str, llm: LLMModel) -> Optional[List[str]
 
     # TODO: Modular user expectation classifier.
 
-    keyword_to_intent = {
-        '问路': '位置信息',
-        '联系方式': '联系方式'
-    }
-
-    # Attempt to find a direct keyword match for quick intent determination
-    for keyword, intent in keyword_to_intent.items():
-        if keyword in user_msg_content:
-            return [intent]
-
     try:
-        predicted_intent = llm.predict_intent(
+        intents = llm.predict_intent(
             user_msg_content,
-            app_manager.LLM_CHAT_PROMPT,
+            app_manager.GLM_TOOLS_PROMPT,
             app_manager.GLM_TOOLS
         )
-        if predicted_intent in keyword_to_intent:
-            return [keyword_to_intent[predicted_intent]]
-        else:
-            logger.info("LLM predicted an unknown intent: %s",
-                        predicted_intent)
+        return intents
     except Exception as e:
         logger.exception("Failed to determine intent with LLM: %s", e)
 
     return []
 
 
-def handle_exception(exception: Exception, sender_id: Optional[str], wecom_app: WeComApplication) -> None:
+async def handle_exception(exception: Exception, sender_id: Optional[str], wecom_app: WeComApplication) -> None:
     logger.exception("Failed to process WeCom message: %s", str(exception))
     if sender_id:
-        wecom_app.send_message_async(
+        await wecom_app.send_message_async(
             sender_id, app_manager.WECOM_APP_ERROR_MESSAGE)
