@@ -1,15 +1,34 @@
 import asyncio
 import json
-from typing import Dict, Optional, Union
+from typing import Annotated, Dict, Optional, Union
 from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM
 )
 
+from src.modules.models.tools_manager import ToolsManager
+
 
 class LLMModel:
-    def __init__(self, model_name: str = "THUDM/chatglm3-6b", device: str = "cpu"):
+    def __init__(self, model_name: str, tools_manager: ToolsManager, device: str = "cpu"):
         self.device = device
+        self.tools_manager = tools_manager
+
+        @self.tools_manager.register_tool
+        def predict_intent(
+            symbol: Annotated[str, "分类用户的需求（问路、联系方式、其他）", True]
+        ) -> str:
+            """
+            分类用户需求
+            """
+            keyword_to_intent = {
+                '问路': '位置信息',
+                '联系方式': '联系方式'
+            }
+            if symbol in keyword_to_intent:
+                return [keyword_to_intent[symbol]]
+
+            return "其他"
 
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, trust_remote_code=True)
@@ -28,12 +47,12 @@ class LLMModel:
             self.tokenizer, prompt, history=history)
         return response
 
-    def get_response_by_tools(self, query: str, prompt: str, tools: dict) -> Union[str, dict]:
-        if tools is None and prompt is None:
+    def get_response_by_tools(self, query: str, prompt: str) -> Union[str, dict]:
+        if prompt is None:
             raise ValueError("Tools or prompt for GLM tools is not provided.")
 
         system_info = {
-            "role": "system", "content": prompt, "tools": tools}
+            "role": "system", "content": prompt, "tools": self.tools_manager.get_tools()}
         history = [system_info]
         response = self.chat(query, history)
         return response
@@ -42,13 +61,11 @@ class LLMModel:
         prompt = prompt.format(message)
         return self.chat(prompt, history)
 
-    def predict_intent(self, query: str, prompt: str, tools: dict) -> Optional[str]:
-        response = self.get_response_by_tools(query, prompt, tools)
+    def predict_intent(self, query: str, prompt: str) -> Optional[str]:
+        response = self.get_response_by_tools(query, prompt)
         if isinstance(response, dict):
-            if response.get("name") == "predict_intent" and "parameters" in response:
-                # Extract the classification symbol if present
-                if isinstance(response["parameters"], dict) and "symbol" in response["parameters"]:
-                    classification = response["parameters"].get("symbol")
-                    return classification
+            tool_observation = self.tools_manager.dispatch_tool(
+                response.get("name"), response.get("parameters"))
+            return tool_observation[0].text
 
         return None

@@ -17,31 +17,15 @@ class BaseConfig:
     TMP_FILE_PATH = "./data/files"  # 配置你临时文件存储路径，默认：./data/files
 
     # 企业微信相关配置项，留空默认不开始该部分
-    # AGENT_ID="" # 企业微信，应用的ID
-    # TOKEN="" # 企业微信，应用的密钥
-    # ENCODING_AES_KEY="" # 企业微信，应用的解密口令
-    # CORP_ID="" # 企业ID
-    # CORP_SECRET="" # 企业密钥
+    AGENT_ID="" # 企业微信，应用的ID
+    TOKEN="" # 企业微信，应用的密钥
+    ENCODING_AES_KEY="" # 企业微信，应用的解密口令
+    CORP_ID="" # 企业ID
+    CORP_SECRET="" # 企业密钥
 
     DEFAULT_TAGS = ['通用']
 
     EMBEDDING_QUERY_INSTRUCTION = "为这个句子生成表示以用于检索相关文章："
-
-    GLM_TOOLS = [
-        {
-            "name": "predict_intent",
-            "description": "分类用户需求",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "symbol": {
-                        "description": "分类用户的需求（问路、联系方式、其他）"
-                    }
-                },
-                "required": ['symbol']
-            }
-        }
-    ]
 
     GLM_TOOLS_PROMPT = "Answer the following questions as best as you can. You have access to the following tools:"
 

@@ -17,9 +17,8 @@ logger = logging.getLogger(__name__)
 
 async def process_message(wecom_message_xml: str, **kwargs) -> None:
     sender_id = None
+    llm_model, wecom_app = initialize_app_components()
     try:
-        llm_model, wecom_app = initialize_app_components()
-
         kwargs.update({'msg_crypt': wecom_app.wxcpt})
         sender_id, user_msg_content, user_msg_type = extract_message_info(
             wecom_message_xml, **kwargs)
@@ -53,19 +52,30 @@ def initialize_app_components() -> Tuple[LLMModel, WeComApplication]:
     return llm_model, wecom_app
 
 
-def should_process_message(wecom_app: WeComApplication, sender_id: str, user_msg_type: str) -> bool:
+def should_process_message(
+    wecom_app: WeComApplication,
+    sender_id: str,
+    user_msg_type: str
+) -> bool:
     if wecom_app.is_on_cooldown(sender_id) or user_msg_type != "text":
         return False
     return True
 
 
-def build_search_params(sender_id: str, content: str, tags: List[str] = []) -> Dict[str, Any]:
+def build_search_params(
+    sender_id: str,
+    content: str,
+    tags: List[str] = []
+) -> Dict[str, Any]:
     wecom_app = app_manager.get_wecom_application()
     tags.append(wecom_app.get_dep_name(sender_id))
     return {"query": content, "tags": tags}
 
 
-def build_history(records: HistoryRecords, reranked_documents: List[Document]) -> List[Dict[str, str]]:
+def build_history(
+    records: HistoryRecords,
+    reranked_documents: List[Document]
+) -> List[Dict[str, str]]:
     system_prompt = app_manager.LLM_SYSTEM_PROMPT.format(
         "".join(doc.page_content for doc in reranked_documents) if reranked_documents else app_manager.LLM_SYSTEM_PROMPT_FILLNON
     )
@@ -88,17 +98,23 @@ def determine_intent(user_msg_content: str, llm: LLMModel) -> Optional[List[str]
     try:
         intents = llm.predict_intent(
             user_msg_content,
-            app_manager.GLM_TOOLS_PROMPT,
-            app_manager.GLM_TOOLS
+            app_manager.GLM_TOOLS_PROMPT
         )
-        return intents
+        if isinstance(intents, str):
+            return [intents]
+        else:
+            raise ValueError("Wrong intents: %s", intents)
     except Exception as e:
         logger.exception("Failed to determine intent with LLM: %s", e)
 
     return []
 
 
-async def handle_exception(exception: Exception, sender_id: Optional[str], wecom_app: WeComApplication) -> None:
+async def handle_exception(
+    exception: Exception,
+    sender_id: Optional[str],
+    wecom_app: WeComApplication
+) -> None:
     logger.exception("Failed to process WeCom message: %s", str(exception))
     if sender_id:
         await wecom_app.send_message_async(

@@ -7,6 +7,7 @@ from functools import wraps
 from typing import Optional
 
 from config import BaseConfig
+from src.modules.models.tools_manager import ToolsManager
 from src.modules.database import DatabaseManager
 from src.modules.models import Reranker, LLMModel
 from src.modules.document.vectorstore import VectorStore
@@ -43,6 +44,9 @@ class ApplicationManager(BaseConfig):
         self.database_instance = None
         self.llm_model = None
         self.reranker_model = None
+
+        self.tools_manager = ToolsManager()
+
         self.initialize()
 
     def initialize(self):
@@ -104,6 +108,7 @@ class ApplicationManager(BaseConfig):
                     "Initializing LLM Model... %s", self.LLM_MODEL_PATH)
                 self.llm_model = LLMModel(
                     model_name=self.LLM_MODEL_PATH,
+                    tools_manager=self.tools_manager,
                     device=self.device
                 )
                 self.logger.info(
@@ -139,6 +144,10 @@ class ApplicationManager(BaseConfig):
     def get_vector_store(self) -> Optional[VectorStore]:
         """Returns the document vector store instance."""
         return self.vector_store
+
+    def get_tools_manager(self) -> Optional[ToolsManager]:
+        """Returns the tools manager instance."""
+        return self.tools_manager
 
 
 app_manager = ApplicationManager()
