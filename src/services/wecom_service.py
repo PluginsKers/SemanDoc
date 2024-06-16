@@ -27,7 +27,7 @@ async def process_message(wecom_message_xml: str, **kwargs) -> None:
             return
 
         wecom_app.set_cooldown(sender_id, wecom_app.COOLDOWN_TIME)
-        predicted_tags = determine_intent(user_msg_content, llm_model)
+        predicted_tags = detect_user_intent(user_msg_content, llm_model)
 
         search_params = build_search_params(
             sender_id, user_msg_content, predicted_tags)
@@ -91,7 +91,7 @@ def extract_message_info(wecom_message_xml: str, **kwargs) -> Tuple[str, str, st
     return wecom_message.get_from_user(), wecom_message.get_content(), wecom_message.get_msg_type()
 
 
-def determine_intent(user_msg_content: str, llm: LLMModel) -> Optional[List[str]]:
+def detect_user_intent(user_msg_content: str, llm: LLMModel) -> Optional[List[str]]:
 
     # TODO: Modular user expectation classifier.
 
@@ -102,8 +102,11 @@ def determine_intent(user_msg_content: str, llm: LLMModel) -> Optional[List[str]
         )
         if isinstance(intents, str):
             return [intents]
+        elif isinstance(intents, list) and all(isinstance(intent, str) for intent in intents):
+            return intents
         else:
-            raise ValueError("Wrong intents: %s", intents)
+            raise ValueError(
+                f"Unexpected type for intents: {type(intents)} with value: {intents}")
     except Exception as e:
         logger.exception("Failed to determine intent with LLM: %s", e)
 
