@@ -66,6 +66,7 @@ def find_and_optimize_documents(query: str, tags: Optional[List[str]] = None) ->
 
     optimized_documents = app_manager.get_reranker(
     ).rerank_documents(found_documents, query)
+
     return optimized_documents
 
 

@@ -26,7 +26,7 @@ class LLMModel:
                 '联系方式': '联系方式'
             }
             if symbol in keyword_to_intent:
-                return [keyword_to_intent[symbol]]
+                return keyword_to_intent[symbol]
 
             return "其他"
 

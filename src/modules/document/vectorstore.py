@@ -1,4 +1,5 @@
 import operator
+import signal
 import torch
 import os
 import shutil
@@ -69,6 +70,7 @@ class VectorStore:
         Initializes the VectorStore with the specified folder path for saving indices,
         the name of the embedding model, and the computing device.
         """
+        self.logger = logger
         self.device = device
         self.embedding = HuggingFaceEmbeddings(
             model_name=embedding_model_name,
@@ -111,7 +113,7 @@ class VectorStore:
 
             if self.device == "cuda":
                 self.gpu_resources = faiss.StandardGpuResources()
-                logger.info("Loaded index to GPU.")
+                self.logger.info("Loaded index to GPU.")
                 return faiss.index_cpu_to_gpu(self.gpu_resources, 0, index_cpu)
             else:
                 return index_cpu
@@ -119,16 +121,16 @@ class VectorStore:
     def _save_worker(self):
         """
         Worker thread that processes save tasks from the queue. It runs indefinitely
-        and processes each task by calling the _perform_save method.
+        and processes each task by calling the _perform_save_operation method.
         """
         while True:
             task = self.save_tasks.get()
             if task is None:  # Use None as a signal to stop the worker.
                 break
-            self._perform_save(task)
+            self._perform_save_operation(task)
             self.save_tasks.task_done()
 
-    def _perform_save(self, index_name: str):
+    def _perform_save_operation(self, index_name: str):
         """
         Performs the actual save operation for the index and docstore.
         This method is called by the worker thread.
@@ -136,7 +138,7 @@ class VectorStore:
         Before saving, creates backups of existing data. If the save fails,
         restores from the backups.
         """
-        logger.info(f"Performing save operation for {index_name}.")
+        self.logger.info(f"Performing save operation for {index_name}.")
         path = Path(self.folder_path)
         path.mkdir(exist_ok=True, parents=True)
 
@@ -155,7 +157,8 @@ class VectorStore:
 
             index_to_save = self.index
             if self.device == "cuda":
-                logger.info("Transferring index from GPU to CPU for saving.")
+                self.logger.info(
+                    "Transferring index from GPU to CPU for saving.")
                 index_to_save = faiss.index_gpu_to_cpu(self.index)
                 torch.cuda.synchronize()  # Ensure all CUDA operations are complete
 
@@ -163,13 +166,13 @@ class VectorStore:
             with open(original_pkl_path, "wb") as f:
                 pickle.dump((self.docstore, self.index_to_docstore_id), f)
         except Exception as e:
-            logger.error(
+            self.logger.error(
                 f"Save operation failed: {e}, attempting to restore from backup.")
             if backup_faiss_path.exists():
                 shutil.copyfile(backup_faiss_path, original_faiss_path)
             if backup_pkl_path.exists():
                 shutil.copyfile(backup_pkl_path, original_pkl_path)
-            logger.info("Restored data from backup.")
+            self.logger.info("Restored data from backup.")
             raise
         finally:
             if backup_faiss_path.exists():
@@ -177,14 +180,15 @@ class VectorStore:
             if backup_pkl_path.exists():
                 backup_pkl_path.unlink()
 
-        logger.info(f"Save operation for {index_name} completed successfully.")
+        self.logger.info(
+            f"Save operation for {index_name} completed successfully.")
 
     def save_index(self, index_name: str = "index"):
         """
         Queues a save task for the specified index. If a save operation is already in progress,
         the task will wait in the queue until it's processed by the worker thread.
         """
-        logger.info(f"Queueing save operation for {index_name}.")
+        self.logger.info(f"Queueing save operation for {index_name}.")
         self.save_tasks.put(index_name)
 
     def rebuild_index(self):
@@ -228,10 +232,10 @@ class VectorStore:
                     else:
                         self.index = new_index_cpu
 
-                    logger.info(
+                    self.logger.info(
                         "Index has been successfully rebuilt and reloaded.")
                 except Exception as e:
-                    logger.error(f"Error during index rebuild: {e}")
+                    self.logger.error(f"Error during index rebuild: {e}")
                     raise
                 finally:
                     self._lock.release()
@@ -239,7 +243,7 @@ class VectorStore:
             threading.Thread(target=rebuild).start()
         except Exception as e:
             self._lock.release()
-            logger.error(f"Error initiating index rebuild: {e}")
+            self.logger.error(f"Error initiating index rebuild: {e}")
             raise
 
     def remove_documents_by_id(

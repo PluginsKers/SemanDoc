@@ -31,7 +31,14 @@ async def process_message(wecom_message_xml: str, **kwargs) -> None:
 
         search_params = build_search_params(
             sender_id, user_msg_content, predicted_tags)
+
         documents = find_and_optimize_documents(**search_params)
+
+        if len(documents) > 0:
+            optimized_documents_list = '\n - '.join(
+                [i.page_content for i in documents])
+            logger.info(
+                f"Found {len(documents)} documents:\n - {optimized_documents_list}")
 
         history = build_history(wecom_app.historys.get(sender_id), documents)
         response = llm_model.get_response(
@@ -91,7 +98,7 @@ def extract_message_info(wecom_message_xml: str, **kwargs) -> Tuple[str, str, st
     return wecom_message.get_from_user(), wecom_message.get_content(), wecom_message.get_msg_type()
 
 
-def detect_user_intent(user_msg_content: str, llm: LLMModel) -> Optional[List[str]]:
+def detect_user_intent(user_msg_content: str, llm: LLMModel) -> List[str]:
 
     # TODO: Modular user expectation classifier.
 
