@@ -24,6 +24,13 @@ class DocumentUploadResource(Resource):
             if file.filename == '':
                 return {"message": app_manager.RESPONSE_DOCUMENT_ADD_FAILED}, 400
 
+            # Check and create the directory if it does not exist
+            if not os.path.exists(app_manager.TMP_FILE_PATH):
+                try:
+                    os.makedirs(app_manager.TMP_FILE_PATH)
+                except Exception as e:
+                    return {"message": f"Failed to create directory: {e}"}, 500
+
             if file and file.filename.endswith('.xlsx'):
                 original_filename = secure_filename(file.filename)
                 # Create a secure hash of the original file name
@@ -34,18 +41,11 @@ class DocumentUploadResource(Resource):
                 filepath = os.path.join(
                     app_manager.TMP_FILE_PATH, encrypted_filename)
 
-                # Check and create the directory if it does not exist
-                if not os.path.exists(app_manager.TMP_FILE_PATH):
-                    try:
-                        os.makedirs(app_manager.TMP_FILE_PATH)
-                    except Exception as e:
-                        return {"message": f"Failed to create directory: {e}"}, 500
-
                 file.save(filepath)
 
                 processed_data = process_excel_file(filepath)
 
-                if not processed_data:
+                if len(processed_data) > 0:
                     return {"message": app_manager.RESPONSE_DOCUMENT_ADD_FAILED + "-1"}, 404
 
                 # Initialize counters for statistics

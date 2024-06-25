@@ -1,4 +1,3 @@
-
 import os
 import torch
 import logging
@@ -9,7 +8,7 @@ from typing import Optional
 from config import BaseConfig
 from src.modules.models.tools_manager import ToolsManager
 from src.modules.database import DatabaseManager
-from src.modules.models import Reranker, LLMModel
+from src.modules.models import Reranker, LLM
 from src.modules.document.vectorstore import VectorStore
 from src.modules.wecom import WeComApplication
 
@@ -106,7 +105,7 @@ class ApplicationManager(BaseConfig):
             if not self.llm_model:
                 self.logger.info(
                     "Initializing LLM Model... %s", self.LLM_MODEL_PATH)
-                self.llm_model = LLMModel(
+                self.llm_model = LLM(
                     model_name=self.LLM_MODEL_PATH,
                     tools_manager=self.tools_manager,
                     device=self.device
@@ -128,7 +127,7 @@ class ApplicationManager(BaseConfig):
         """Returns the reranker model instance."""
         return self.reranker_model
 
-    def get_llm_model(self) -> Optional[LLMModel]:
+    def get_llm_model(self) -> Optional[LLM]:
         """Returns the LLM model instance."""
         return self.llm_model
 

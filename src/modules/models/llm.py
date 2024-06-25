@@ -9,7 +9,7 @@ from transformers import (
 from src.modules.models.tools_manager import ToolsManager
 
 
-class LLMModel:
+class LLM:
     def __init__(self, model_name: str, tools_manager: ToolsManager, device: str = "cpu"):
         self.device = device
         self.tools_manager = tools_manager
@@ -22,8 +22,10 @@ class LLMModel:
             分类用户需求
             """
             keyword_to_intent = {
+                '位置': '位置信息',
                 '问路': '位置信息',
-                '联系方式': '联系方式'
+                '联系方式': '联系方式',
+                '联系': '联系方式'
             }
             if symbol in keyword_to_intent:
                 return keyword_to_intent[symbol]

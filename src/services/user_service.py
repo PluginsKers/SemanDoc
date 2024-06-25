@@ -2,15 +2,17 @@ import re
 import logging
 from typing import Optional, Tuple
 
+from src.services.auth_service import check_permissions
 from src import app_manager
 from src.modules.database import User, Role
 
 logger = logging.getLogger(__name__)
 
-user_db = User(app_manager.get_database_instance())
-role_db = Role(app_manager.get_database_instance())
+userDB = User(app_manager.get_database_instance())
+roleDB = Role(app_manager.get_database_instance())
 
 
+@check_permissions(["USERS_CONTROL"])
 def create_user(username: str, password: str, role: int, nickname: str = "User", **kwargs) -> Tuple[bool, Optional[dict]]:
     """
     Creates a new user with the specified role and additional attributes.
@@ -28,10 +30,6 @@ def create_user(username: str, password: str, role: int, nickname: str = "User",
     Raises:
         ValueError: If required user_id is missing, the role is invalid, or permissions are insufficient.
     """
-    user_id = kwargs.get('user_id')
-    if user_id is None:
-        raise ValueError("User ID is required for creating a user.")
-
     # Validate username
     if not username or len(username) < 3:
         raise ValueError(
@@ -52,23 +50,12 @@ def create_user(username: str, password: str, role: int, nickname: str = "User",
     if not re.search(r'\d', password):
         raise ValueError("Password must contain at least one digit.")
 
-    try:
-        user_info = user_db.get_user_by_id(int(user_id))
-        if user_info is None:
-            raise ValueError("User ID does not exist.")
-
-        if not role_db.check_permission(user_info['role_id'], 'USERS_CONTROL'):
-            raise ValueError(
-                "Invalid role or insufficient permissions to create a user.")
-    except Exception as e:
-        raise ValueError(f"An error occurred while verifying permissions: {e}")
-
-    if role_db.has_role(role):
-        success, message = user_db.add_user(username, password, nickname, role)
+    if roleDB.has_role(role):
+        success, message = userDB.add_user(username, password, nickname, role)
         if not success:
             logger.error(f"Failed to add user: {message}")
             raise ValueError(f"Failed to add user: {message}")
-        new_user_info = user_db.get_user_by_username(username)
+        new_user_info = userDB.get_user_by_username(username)
         if new_user_info is None:
             logger.error(f"Failed to retrieve user after creation: {message}")
             raise ValueError(
@@ -99,13 +86,13 @@ def get_user_by_id(id: Optional[int], **kwargs) -> Tuple[bool, Optional[dict]]:
     try:
         if id is None:
             id = user_id
-        user_info = user_db.get_user_by_id(int(user_id))
+        user_info = userDB.get_user_by_id(int(user_id))
         if user_info is None:
             raise ValueError("User ID does not exist.")
-        if not role_db.check_permission(user_info['role_id'], 'USERS_CONTROL'):
+        if not roleDB.check_permission(user_info['role_id'], 'USERS_CONTROL'):
             return True, user_info
         else:
-            user_data = user_db.get_user_by_id(int(id))
+            user_data = userDB.get_user_by_id(int(id))
             if user_data:
                 return True, user_data
     except Exception as e:
@@ -132,14 +119,14 @@ def delete_user_by_id(id: int, **kwargs) -> bool:
         return False
 
     try:
-        user_info = user_db.get_user_by_id(int(kwargs.get('user_id')))
-        if not role_db.check_permission(user_info['role_id'], 'USERS_CONTROL'):
+        user_info = userDB.get_user_by_id(int(kwargs.get('user_id')))
+        if not roleDB.check_permission(user_info['role_id'], 'USERS_CONTROL'):
             raise ValueError(
                 "Invalid role or insufficient permissions to delete a user.")
     except Exception as e:
         raise ValueError(f"An error occurred while verifying permissions: {e}")
 
-    if user_db.delete_user_by_id(id):
+    if userDB.delete_user_by_id(id):
         return True
     logger.error("Failed to delete user.")
     return False
@@ -166,10 +153,10 @@ def update_user(id: Optional[int], **kwargs) -> bool:
     try:
         if id is None:
             id = user_id
-        updater_info = user_db.get_user_by_id(int(id))
+        updater_info = userDB.get_user_by_id(int(id))
         if updater_info is None:
             raise ValueError("Updater ID does not exist.")
-        if not role_db.check_permission(updater_info['role_id'], 'USERS_CONTROL'):
+        if not roleDB.check_permission(updater_info['role_id'], 'USERS_CONTROL'):
             raise ValueError(
                 "Invalid role or insufficient permissions to update a user.")
     except Exception as e:
@@ -180,7 +167,7 @@ def update_user(id: Optional[int], **kwargs) -> bool:
     nickname = kwargs.get('nickname')
     role_id = kwargs.get('role_id')
 
-    success, message = user_db.update_user(
+    success, message = userDB.update_user(
         id, password=password, nickname=nickname, role_id=role_id)
     if not success:
         logger.error(f"Failed to update user: {message}")

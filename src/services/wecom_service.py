@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from src import app_manager
 from src.services.document_service import find_and_optimize_documents
-from src.modules.models.llm import LLMModel
+from src.modules.models.llm import LLM
 from src.modules.document import Document
 from src.modules.wecom import (
     HistoryRecords,
@@ -49,7 +49,7 @@ async def process_message(wecom_message_xml: str, **kwargs) -> None:
         await handle_exception(e, sender_id, wecom_app)
 
 
-def initialize_app_components() -> Tuple[LLMModel, WeComApplication]:
+def initialize_app_components() -> Tuple[LLM, WeComApplication]:
     llm_model = app_manager.get_llm_model()
     wecom_app = app_manager.get_wecom_application()
 
@@ -98,7 +98,7 @@ def extract_message_info(wecom_message_xml: str, **kwargs) -> Tuple[str, str, st
     return wecom_message.get_from_user(), wecom_message.get_content(), wecom_message.get_msg_type()
 
 
-def detect_user_intent(user_msg_content: str, llm: LLMModel) -> List[str]:
+def detect_user_intent(user_msg_content: str, llm: LLM) -> List[str]:
 
     # TODO: Modular user expectation classifier.
 

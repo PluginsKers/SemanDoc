@@ -6,16 +6,16 @@ from src import app_manager
 from src.modules.document import (
     Document
 )
-from src.modules.database import Document as Docdb
+from src.modules.database import Document as DocumentDatabase
 from src.modules.database.user import User, Role
 
 
 logger = logging.getLogger(__name__)
 
 
-user_db = User(app_manager.get_database_instance())
-doc_db = Docdb(app_manager.get_database_instance())
-role_db = Role(app_manager.get_database_instance())
+userDB = User(app_manager.get_database_instance())
+docDB = DocumentDatabase(app_manager.get_database_instance())
+roleDB = Role(app_manager.get_database_instance())
 
 
 def build_history(reranked_documents: List[Document]) -> List[Dict[str, str]]:

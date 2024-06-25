@@ -26,10 +26,19 @@ class WecomMessage:
     processed_ids = set()
     processed_ids_lock = threading.Lock()  # Adding thread safety
 
-    valid_encrypt_template = [{"AgentID": None},
-                              {"ToUserName": None}, {"Encrypt": None}]
-    decrypted_template = [{"ToUserName": None}, {"MsgType": None}, {
-        "Content": None}, {"MsgId": None}, {"AgentID": None}]
+    valid_encrypt_template = [
+        {"AgentID": None},
+        {"ToUserName": None},
+        {"Encrypt": None}
+    ]
+
+    decrypted_template = [
+        {"ToUserName": None},
+        {"MsgType": None},
+        {"Content": None},
+        {"MsgId": None},
+        {"AgentID": None}
+    ]
 
     def __init__(self, raw_xml_data: str, msg_signature: str, timestamp: str, nonce: str, msg_crypt: WXBizMsgCrypt):
         self.msg_crypt = msg_crypt
@@ -48,7 +57,7 @@ class WecomMessage:
 
         if not self._contains_keys(self.xml_tree, self.decrypted_template):
             raise InvalidXMLDataError(
-                f"Invalid XML data in decrypted message: {self.xml_tree.text}")
+                f"Invalid XML data in decrypted message: {self.raw_xml_data}")
 
         self.msg_id = self._get_msg_id()
 

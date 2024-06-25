@@ -203,20 +203,27 @@ class Document(DatabaseManager):
                     f"Failed to rollback transaction: {rollback_error}")
             return False
 
-    def get_documents_records(self) -> List[Dict[str, Any]]:
+    def get_documents_records(self, limit: int = None) -> List[Dict[str, Any]]:
         """
         Retrieve the records of documents list.
+
+        Args:
+            limit (int): Limit the number of records returned.
 
         Returns:
             list: A list of records records for the document.
         """
-        query = "SELECT * FROM documents_records ORDER BY edit_time DESC;"
+        query = "SELECT * FROM documents_records ORDER BY edit_time DESC"
+        if limit is not None:
+            query += f" LIMIT {limit};"
+        else:
+            query += ";"
+
         try:
-            result = self.execute_read_query(query, )
+            result = self.execute_read_query(query)
             columns = ["id", "document_id", "editor_id",
                        "edit_time", "edit_description"]
             return [dict(zip(columns, row)) for row in result]
         except Exception as e:
-            logger.error(
-                f"Failed to get documents history: {e}")
+            logger.error(f"Failed to get documents history: {e}")
             raise

@@ -434,3 +434,9 @@ class VectorStore:
         vd_docs = [doc for doc, _ in docs_and_scores if doc.is_valid()]
 
         return vd_docs[:k]
+
+    def get_all_documents(self) -> List[Document]:
+        """
+            Returns a list of all Document instances stored in the VectorStore.
+            """
+        return list(self.docstore.values())

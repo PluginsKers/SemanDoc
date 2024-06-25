@@ -2,7 +2,7 @@ import re
 from typing import List, Optional, Tuple
 import pandas as pd
 import pytz
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from src.modules.document.typing import Document
 
@@ -27,8 +27,6 @@ def document_formatting(doc: Document) -> Tuple[bool, Document]:
                 '-', '/').strip()
             return datetime.strptime(time_str, "%Y/%m/%d %H:%M")
 
-        timezone = pytz.timezone("Asia/Shanghai")
-
         # Handle times
         end_time = parse_time(end_time_str)
         start_time = parse_time(start_time_str)
@@ -47,7 +45,25 @@ def document_formatting(doc: Document) -> Tuple[bool, Document]:
         return False, None
 
 
-def process_excel_file(filepath) -> Optional[List[Document]]:
+def reverse_document_formatting(doc: Document) -> str:
+    try:
+        start_time = datetime.fromtimestamp(
+            doc.metadata.start_time, pytz.timezone("Asia/Shanghai"))
+        valid_time = timedelta(seconds=doc.metadata.valid_time)
+        end_time = start_time + valid_time
+        tags = doc.metadata.tags.get_tags()
+
+        end_time_str = end_time.strftime("%Y/%m/%d %H:%M")
+        start_time_str = start_time.strftime("%Y/%m/%d %H:%M")
+        tags_str = ','.join(tags)
+
+        formatted_str = f"<{end_time_str};{tags_str};{start_time_str}>"
+        return formatted_str
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+def process_excel_file(filepath) -> List[Document]:
     df = pd.read_excel(filepath)
     documents = []
 
@@ -57,4 +73,4 @@ def process_excel_file(filepath) -> Optional[List[Document]]:
         if formatted:
             documents.append(updated_doc)
 
-    return documents if documents else None
+    return documents

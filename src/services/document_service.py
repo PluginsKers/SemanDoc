@@ -7,16 +7,17 @@ from src.modules.document import (
     Document,
     Metadata
 )
-from src.modules.database import Document as Docdb
+from src.modules.database import Document as DocumentDatabase
 from src.modules.database.user import User, Role
+from src.services.auth_service import check_permissions
 
 
 logger = logging.getLogger(__name__)
 
 
-user_db = User(app_manager.get_database_instance())
-doc_db = Docdb(app_manager.get_database_instance())
-role_db = Role(app_manager.get_database_instance())
+userDB = User(app_manager.get_database_instance())
+docDB = DocumentDatabase(app_manager.get_database_instance())
+roleDB = Role(app_manager.get_database_instance())
 
 
 def find_and_optimize_documents(query: str, tags: Optional[List[str]] = None) -> List[Document]:
@@ -120,6 +121,7 @@ def get_documents(
     return reranked_docs
 
 
+@check_permissions(['DOCUMENTS_CONTROL'])
 def add_document(
     data: str,
     metadata: Dict[str, Any],
@@ -128,6 +130,7 @@ def add_document(
     return _add_documents_helper([Document(page_content=data, metadata=metadata)], **kwargs)
 
 
+@check_permissions(['DOCUMENTS_CONTROL'])
 def add_documents(
     documents: List[Document],
     **kwargs
@@ -141,16 +144,6 @@ def _add_documents_helper(
     **kwargs
 ) -> List[Document]:
     user_id = kwargs.get('user_id')
-    if user_id is None:
-        raise ValueError("User ID is required for adding a document.")
-
-    user_info = user_db.get_user_by_id(user_id)
-    if user_info is None:
-        raise ValueError("User does not exist.")
-
-    if not role_db.check_permission(user_info['role_id'], 'DOCUMENTS_CONTROL'):
-        raise ValueError("User does not have permission to add documents.")
-
     new_documents = []
     errors = []
     for new_doc in documents:
@@ -186,11 +179,12 @@ def _add_documents_helper(
         store.save_index()
 
         for added_document in added_documents:
-            doc_db.add_document(
+            docDB.add_document(
                 added_document.metadata.ids,
                 added_document.page_content,
                 str(added_document.metadata.to_dict()),
-                user_id
+                user_id,
+                "添加文档"
             )
 
         logger.info("Documents added successfully.")
@@ -200,21 +194,12 @@ def _add_documents_helper(
         return []
 
 
+@check_permissions(['DOCUMENTS_CONTROL'])
 def delete_documents_by_ids(
     ids_to_delete: List[str],
     **kwargs
 ) -> List[Document]:
     user_id = kwargs.get('user_id')
-    if user_id is None:
-        raise ValueError("User ID is required for deleting a document.")
-
-    user_info = user_db.get_user_by_id(user_id)
-    if user_info is None:
-        raise ValueError("User does not exist.")
-
-    if not role_db.check_permission(user_info['role_id'], 'DOCUMENTS_CONTROL'):
-        raise ValueError("User does not have permission to delete documents.")
-
     try:
         store = app_manager.get_vector_store()
 
@@ -223,9 +208,10 @@ def delete_documents_by_ids(
         store.save_index()
 
         for removal_document in results:
-            doc_db.delete_document_by_ids(
+            docDB.delete_document_by_ids(
                 removal_document.metadata.ids,
-                kwargs.get('user_id')
+                kwargs.get('user_id'),
+                "删除文档"
             )
 
         logger.info("Document removed successfully.")
@@ -236,22 +222,13 @@ def delete_documents_by_ids(
         raise  # Rethrowing the exception after logging
 
 
+@check_permissions(['DOCUMENTS_CONTROL'])
 def update_document_by_ids(
     ids: str,
     data: dict[str, Any],
     **kwargs
 ) -> Optional[Document]:
     user_id = kwargs.get('user_id')
-    if user_id is None:
-        raise ValueError("User ID is required for updating a document.")
-
-    user_info = user_db.get_user_by_id(user_id)
-    if user_info is None:
-        raise ValueError("User does not exist.")
-
-    if not role_db.check_permission(user_info['role_id'], 'DOCUMENTS_CONTROL'):
-        raise ValueError("User does not have permission to update documents.")
-
     try:
         store = app_manager.get_vector_store()
         d_ret = store.delete_documents_by_ids([ids])
@@ -273,12 +250,12 @@ def update_document_by_ids(
                     "Failed to add document to the database.")
 
             for new_document in results:
-                doc_db.add_document(
+                docDB.add_document(
                     new_document.metadata.ids,
                     new_document.page_content,
                     str(new_document.metadata.to_dict()),
                     kwargs.get('user_id'),
-                    'Updated.'
+                    "更新文档"
                 )
             store.save_index()
 
@@ -290,16 +267,17 @@ def update_document_by_ids(
         raise  # Rethrowing the exception after logging
 
 
+@check_permissions(['DOCUMENTS_CONTROL'])
 def get_documents_records(**kwargs) -> list:
     user_id = kwargs.get('user_id')
     if user_id is None:
         raise ValueError(
             "User ID is required for getting the document records.")
 
-    docs_records = doc_db.get_documents_records()
+    docs_records = docDB.get_documents_records()
 
     for j in docs_records:
-        j['document'] = doc_db.get_document_by_id(j['document_id'])
-        j['editor'] = user_db.get_user_by_id(j['editor_id'])
+        j['document'] = docDB.get_document_by_id(j['document_id'])
+        j['editor'] = userDB.get_user_by_id(j['editor_id'])
 
     return docs_records
