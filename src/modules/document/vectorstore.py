@@ -1,6 +1,4 @@
 import operator
-import signal
-import torch
 import os
 import shutil
 import pickle
@@ -10,23 +8,20 @@ import logging
 import uuid
 import faiss
 import numpy as np
+import torch
 import torch.nn.functional as F
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Sized, Tuple
 from concurrent.futures import ThreadPoolExecutor
-
-
 from src.modules.document.typing import Document, Metadata
 from src.modules.document.embeddings import HuggingFaceEmbeddings
 
 logger = logging.getLogger(__name__)
 
-
 class VectorStoreError(Exception):
     def __init__(self, message: str):
         self.message = message
         super().__init__(self.message)
-
 
 def dependable_faiss_import(no_avx2: Optional[bool] = None) -> faiss:
     """
@@ -54,18 +49,15 @@ def dependable_faiss_import(no_avx2: Optional[bool] = None) -> faiss:
         )
     return faiss
 
-
 def _len_check_if_sized(x: Any, y: Any, x_name: str, y_name: str) -> None:
     if isinstance(x, Sized) and isinstance(y, Sized) and len(x) != len(y):
         raise ValueError(
             f"{x_name} and {y_name} expected to be equal length but "
             f"len({x_name})={len(x)} and len({y_name})={len(y)}"
         )
-    return
-
 
 class VectorStore:
-    def __init__(self, folder_path: str, embedding_model_name: str, query_instruction: str, device="cpu"):
+    def __init__(self, folder_path: str, embedding_model_name: str, query_instruction: str, device: str = "cpu"):
         """
         Initializes the VectorStore with the specified folder path for saving indices,
         the name of the embedding model, and the computing device.
@@ -196,55 +188,45 @@ class VectorStore:
         Rebuilds the FAISS index based on the current state of the docstore. This is useful if the
         embedding model has changed or if the index has become corrupted or out-of-sync with the docstore.
         """
-        self._lock.acquire()
-        try:
-            faiss = dependable_faiss_import()
-            d = self.embedding.model.get_sentence_embedding_dimension()
-            new_index_cpu = faiss.IndexFlatL2(d)
+        with self._lock:
+            try:
+                faiss = dependable_faiss_import()
+                d = self.embedding.model.get_sentence_embedding_dimension()
+                new_index_cpu = faiss.IndexFlatL2(d)
 
-            all_docs = list(self.docstore.values())
-            all_ids = list(self.docstore.keys())
+                all_docs = list(self.docstore.values())
+                all_ids = list(self.docstore.keys())
 
-            def embed_docs(docs: list[Document]):
-                return np.array(self.embedding._embed_texts(
-                    [doc.page_content for doc in docs]), dtype=np.float32)
+                def embed_docs(docs: List[Document]):
+                    return np.array(self.embedding._embed_texts(
+                        [doc.page_content for doc in docs]), dtype=np.float32)
 
-            num_threads = 12
-            chunk_size = len(all_docs) // num_threads
-            chunks = [all_docs[i:i + chunk_size]
-                      for i in range(0, len(all_docs), chunk_size)]
-            with ThreadPoolExecutor(max_workers=num_threads) as executor:
-                results = executor.map(embed_docs, chunks)
-            embeddings = np.concatenate(list(results))
+                num_threads = 12
+                chunk_size = len(all_docs) // num_threads
+                chunks = [all_docs[i:i + chunk_size]
+                          for i in range(0, len(all_docs), chunk_size)]
+                with ThreadPoolExecutor(max_workers=num_threads) as executor:
+                    results = executor.map(embed_docs, chunks)
+                embeddings = np.concatenate(list(results))
 
-            def rebuild():
-                try:
-                    new_index_cpu.add(embeddings)
-                    self.index_to_docstore_id = {
-                        i: doc_id for i, doc_id in enumerate(all_ids)}
+                new_index_cpu.add(embeddings)
+                self.index_to_docstore_id = {
+                    i: doc_id for i, doc_id in enumerate(all_ids)}
 
-                    if self.device == 'cuda':
-                        if not self.gpu_resources:
-                            self.gpu_resources = faiss.StandardGpuResources()
-                        self.index = faiss.index_cpu_to_gpu(
-                            self.gpu_resources, 0, new_index_cpu)
-                        torch.cuda.synchronize()
-                    else:
-                        self.index = new_index_cpu
+                if self.device == 'cuda':
+                    if not self.gpu_resources:
+                        self.gpu_resources = faiss.StandardGpuResources()
+                    self.index = faiss.index_cpu_to_gpu(
+                        self.gpu_resources, 0, new_index_cpu)
+                    torch.cuda.synchronize()
+                else:
+                    self.index = new_index_cpu
 
-                    self.logger.info(
-                        "Index has been successfully rebuilt and reloaded.")
-                except Exception as e:
-                    self.logger.error(f"Error during index rebuild: {e}")
-                    raise
-                finally:
-                    self._lock.release()
-
-            threading.Thread(target=rebuild).start()
-        except Exception as e:
-            self._lock.release()
-            self.logger.error(f"Error initiating index rebuild: {e}")
-            raise
+                self.logger.info(
+                    "Index has been successfully rebuilt and reloaded.")
+            except Exception as e:
+                self.logger.error(f"Error during index rebuild: {e}")
+                raise
 
     def remove_documents_by_id(
         self, target_id_list: Optional[List[str]]
@@ -256,10 +238,12 @@ class VectorStore:
             n_total = self.index.ntotal
             self.index.reset()
             return n_removed, n_total
+
         set_ids = set(target_id_list)
         if len(set_ids) != len(target_id_list):
             raise VectorStoreError(
                 "Duplicate ids in the list of ids to remove.")
+
         index_ids = [
             i_id
             for i_id, d_id in self.index_to_docstore_id.items()
@@ -301,11 +285,7 @@ class VectorStore:
         return self.remove_documents_by_id(id_to_remove)
 
     def _cosine_similarity(self, doc1_embedding: np.ndarray, doc2_embedding: np.ndarray) -> float:
-        doc1_embedding = torch.tensor(doc1_embedding, dtype=torch.float32)
-        doc2_embedding = torch.tensor(doc2_embedding, dtype=torch.float32)
-        cos_sim = F.cosine_similarity(
-            doc1_embedding.unsqueeze(0), doc2_embedding.unsqueeze(0))
-        return cos_sim.item()
+        return np.dot(doc1_embedding, doc2_embedding) / (np.linalg.norm(doc1_embedding) * np.linalg.norm(doc2_embedding))
 
     def add_documents(
         self,
@@ -405,11 +385,11 @@ class VectorStore:
 
     def search(
         self,
-        query,
-        k=5,
+        query: str,
+        k: int = 5,
         filter: Optional[Metadata] = None,
         fetch_k: int = 20,
-        **kwargs
+        **kwargs: Any
     ) -> List[Document]:
 
         if filter is not None:
@@ -438,5 +418,5 @@ class VectorStore:
     def get_all_documents(self) -> List[Document]:
         """
             Returns a list of all Document instances stored in the VectorStore.
-            """
+        """
         return list(self.docstore.values())
