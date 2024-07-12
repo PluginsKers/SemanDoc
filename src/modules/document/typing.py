@@ -154,6 +154,9 @@ class Tags:
             - This method assumes the first element in the `self.tags` list has the highest priority and the second element has the second highest priority.
             - The behavior of this method might not work as expected if there are fewer than two elements in the tag list, as it requires at least two elements to compare priorities.
         """
+        if not self.tags:
+            return [[]]
+
         result = []
         elements = self.tags
         n = len(elements)
@@ -174,93 +177,7 @@ class Tags:
 
         return final_result
 
-    def priority_based_permutations(self) -> List[List[str]]:
-        """
-        Generates all permutations based on tag priority. This method focuses on generating permutations
-        that include all tags (n elements) and, when n > 2, permutations with one less tag (n-1 elements),
-        but only those permutations that start with the highest priority tag or the second highest priority tag are included.
 
-        Returns:
-            List[List[str]]: A list of permutations, where each permutation is a list of tags.
-
-        Description:
-            - The method first determines the length of the tag set (self.tags) and generates all combinations for that length (n) and n-1 when n > 2.
-            - For each combination, it generates all possible permutations.
-            - It then filters out those permutations that start with either the highest priority or the second highest priority tag.
-            It is assumed that the tag list is already sorted in some manner to reflect their priority.
-            - Finally, the method ensures each permutation in the result set is unique by removing any duplicates.
-
-        Note:
-            - This method assumes the first element in the `self.tags` list has the highest priority and the second element has the second highest priority.
-            - The behavior of this method might not work as expected if there are fewer than two elements in the tag list, as it requires at least two elements to compare priorities.
-        """
-        result = []
-        elements = self.tags
-        n = len(elements)
-        # Generate all permutations for n and n-1 elements when n > 2
-        # Adjust range to include n-1 only if n > 2
-        for i in range(n, n - 2 if n > 2 else n - 1, -1):
-            for combination in combinations(elements, i):
-                for perm in permutations(combination):
-                    # Only add if starting with the highest priority element or the second highest
-                    if perm[0] == elements[0] or perm[0] == elements[1]:
-                        result.append(list(perm))
-
-        # Eliminate duplicates
-        final_result = []
-        for item in result:
-            if item not in final_result:
-                final_result.append(item)
-
-        return final_result
-
-    def priority_based_permutations(self) -> List[List[str]]:
-        """
-        Generates all permutations based on tag priority. This method focuses on generating permutations
-        that include all tags (n elements) and, when n > 2, permutations with one less tag (n-1 elements),
-        but only those permutations that start with the highest priority tag or the second highest priority tag are included.
-
-        Additionally, when there are more than one tag, it includes permutations of single tags.
-
-        Returns:
-            List[List[str]]: A list of permutations, where each permutation is a list of tags.
-
-        Description:
-            - The method first determines the length of the tag set (self.tags) and generates all combinations for that length (n) and n-1 when n > 2.
-            - For each combination, it generates all possible permutations.
-            - It then filters out those permutations that start with either the highest priority or the second highest priority tag.
-            It is assumed that the tag list is already sorted in some manner to reflect their priority.
-            - Finally, the method ensures each permutation in the result set is unique by removing any duplicates.
-            - If there are more than one tag, it also adds each tag as a single-element list to the result.
-
-        Note:
-            - This method assumes the first element in the `self.tags` list has the highest priority and the second element has the second highest priority.
-            - The behavior of this method might not work as expected if there are fewer than two elements in the tag list, as it requires at least two elements to compare priorities.
-        """
-        result = []
-        elements = self.tags
-        n = len(elements)
-
-        # Generate all permutations for n and n-1 elements when n > 2
-        for i in range(n, n - 2 if n > 2 else n - 1, -1):
-            for combination in combinations(elements, i):
-                for perm in permutations(combination):
-                    # Only add if starting with the highest priority element or the second highest
-                    if perm[0] == elements[0] or perm[0] == elements[1]:
-                        result.append(list(perm))
-
-        # Eliminate duplicates
-        final_result = []
-        for item in result:
-            if item not in final_result:
-                final_result.append(item)
-
-        # Add single elements if len(self.tags) > 1
-        if len(self.tags) > 1:
-            for element in self.tags:
-                final_result.append([element])
-
-        return final_result
 
     def to_filter(self, powerset: bool = True) -> Optional[Dict[str, Any]]:
         """

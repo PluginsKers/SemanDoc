@@ -35,7 +35,8 @@ class ApplicationManager(BaseConfig):
         console_handler.setFormatter(formatter)
         self.logger.addHandler(console_handler)
 
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = torch.device(
+            'cuda' if torch.cuda.is_available() else 'cpu')
 
         # Initialize instances
         self.vector_store = None
@@ -117,7 +118,8 @@ class ApplicationManager(BaseConfig):
             if not hasattr(self, 'LLM_MODEL_PATH'):
                 missing_attr = "LLM_MODEL_PATH not set."
             elif not os.path.exists(self.LLM_MODEL_PATH):
-                missing_attr = f"Path does not exist: {self.LLM_MODEL_PATH}"
+                missing_attr = f"Path does not exist: {self.LLM_MODEL_PATH}. \
+                    Wecom application functionality will not be available."
             else:
                 missing_attr = "Unknown error."
 

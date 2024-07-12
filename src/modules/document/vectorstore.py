@@ -2,26 +2,24 @@ import operator
 import os
 import shutil
 import pickle
-import queue
-import threading
 import logging
 import uuid
-import faiss
+import faiss  # type: ignore
 import numpy as np
 import torch
-import torch.nn.functional as F
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Sized, Tuple
-from concurrent.futures import ThreadPoolExecutor
 from src.modules.document.typing import Document, Metadata
 from src.modules.document.embeddings import HuggingFaceEmbeddings
 
 logger = logging.getLogger(__name__)
 
+
 class VectorStoreError(Exception):
     def __init__(self, message: str):
         self.message = message
         super().__init__(self.message)
+
 
 def dependable_faiss_import(no_avx2: Optional[bool] = None) -> faiss:
     """
@@ -38,16 +36,20 @@ def dependable_faiss_import(no_avx2: Optional[bool] = None) -> faiss:
 
     try:
         if no_avx2:
-            from faiss import swigfaiss as faiss
+            from faiss import swigfaiss as faiss  # type: ignore
         else:
-            import faiss
+            import faiss  # type: ignore
     except ImportError:
         raise ImportError(
             "Could not import faiss python package. "
             "Please install it with `pip install faiss-gpu` (for CUDA supported GPU) "
             "or `pip install faiss-cpu` (depending on Python version)."
         )
+
+    # Adding an attribute to mark CPU or CUDA
+    faiss.device = torch.device("cpu")
     return faiss
+
 
 def _len_check_if_sized(x: Any, y: Any, x_name: str, y_name: str) -> None:
     if isinstance(x, Sized) and isinstance(y, Sized) and len(x) != len(y):
@@ -56,33 +58,39 @@ def _len_check_if_sized(x: Any, y: Any, x_name: str, y_name: str) -> None:
             f"len({x_name})={len(x)} and len({y_name})={len(y)}"
         )
 
+
 class VectorStore:
-    def __init__(self, folder_path: str, embedding_model_name: str, query_instruction: str, device: str = "cpu"):
-        """
-        Initializes the VectorStore with the specified folder path for saving indices,
-        the name of the embedding model, and the computing device.
-        """
+    def __init__(self, folder_path: str, embedding_model_name: str, query_instruction: str, device: str):
         self.logger = logger
-        self.device = device
+
+        self._faiss_cuda = False
+
+        # Check if FAISS is CUDA or CPU
+        try:
+            res = faiss.StandardGpuResources()  # this will succeed if CUDA is available
+            self._faiss_cuda = True
+            self.logger.info("FAISS is using CUDA.")
+        except AttributeError:
+            self._faiss_cuda = False
+            self.logger.info("FAISS is using CPU.")
+
+        self.device = torch.device(
+            'cuda' if torch.cuda.is_available() and self._faiss_cuda else 'cpu')
+
+        self.cpu_index = None  # Cache for CPU index
+        self.cuda_index = None  # Cache for CUDA index
+
         self.embedding = HuggingFaceEmbeddings(
             model_name=embedding_model_name,
-            device=self.device,
+            device=device,
             query_instruction=query_instruction
         )
 
         self.folder_path = folder_path
 
-        # Initialize a thread-safe queue for save tasks and a lock to ensure exclusive access.
-        self.save_tasks = queue.Queue()
-        self.save_thread = threading.Thread(target=self._save_worker)
-        self.save_thread.daemon = True
-        self.save_thread.start()
-
-        # Initialize docstore and index to document ID mapping.
         self.docstore: Dict[str, Document] = {}
         self.index_to_docstore_id = {}
         self.gpu_resources = None
-        self._lock = threading.Lock()
         self.index = self._load_or_create_index()
 
     def _load_or_create_index(self, index_name: str = "index"):
@@ -92,45 +100,47 @@ class VectorStore:
         _faiss_index_path = str(path / f"{index_name}.faiss")
         _index_path = str(path / f"{index_name}.pkl")
 
-        with self._lock:
-            if os.path.exists(_faiss_index_path) and os.path.exists(_index_path):
-                index_cpu = faiss.read_index(_faiss_index_path)
-                with open(_index_path, "rb") as f:
-                    self.docstore, self.index_to_docstore_id = pickle.load(f)
-            else:
-                d = self.embedding.model.get_sentence_embedding_dimension()
-                index_cpu = faiss.IndexFlatL2(d)
-                self.docstore = {}
-                self.index_to_docstore_id = {}
+        if os.path.exists(_faiss_index_path) and os.path.exists(_index_path):
+            index_cpu = faiss.read_index(_faiss_index_path)
+            with open(_index_path, "rb") as f:
+                self.docstore, self.index_to_docstore_id = pickle.load(f)
+        else:
+            d = self.embedding.model.get_sentence_embedding_dimension()
+            index_cpu = faiss.IndexFlatL2(d)
+            self.docstore = {}
+            self.index_to_docstore_id = {}
 
-            if self.device == "cuda":
-                self.gpu_resources = faiss.StandardGpuResources()
-                self.logger.info("Loaded index to GPU.")
-                return faiss.index_cpu_to_gpu(self.gpu_resources, 0, index_cpu)
-            else:
-                return index_cpu
+        self.cpu_index = index_cpu
+        # Ensure the initial device is marked as CPU
+        faiss.device = torch.device("cpu")
 
-    def _save_worker(self):
-        """
-        Worker thread that processes save tasks from the queue. It runs indefinitely
-        and processes each task by calling the _perform_save_operation method.
-        """
-        while True:
-            task = self.save_tasks.get()
-            if task is None:  # Use None as a signal to stop the worker.
-                break
-            self._perform_save_operation(task)
-            self.save_tasks.task_done()
+        if self.device == "cuda":
+            self.gpu_resources = faiss.StandardGpuResources()
+            self.logger.info("Loaded index to CUDA.")
+            self.cuda_index = faiss.index_cpu_to_gpu(
+                self.gpu_resources, 0, self.cpu_index)
+            faiss.device = torch.device("cuda")
+            return self.cuda_index
+        else:
+            return self.cpu_index
 
-    def _perform_save_operation(self, index_name: str):
-        """
-        Performs the actual save operation for the index and docstore.
-        This method is called by the worker thread.
-        If the index is on GPU, it transfers it to CPU before saving.
-        Before saving, creates backups of existing data. If the save fails,
-        restores from the backups.
-        """
-        self.logger.info(f"Performing save operation for {index_name}.")
+    def _move_to_gpu_if_needed(self):
+        if self.device == "cuda" and faiss.device == "cpu":
+            self.logger.info(
+                "Transferring index from CPU to CUDA for computation.")
+            self.cuda_index = faiss.index_cpu_to_gpu(
+                self.gpu_resources, 0, self.cpu_index)
+            faiss.device = torch.device("cuda")
+
+    def _move_to_cpu_if_needed(self):
+        if self.device == "cuda" and faiss.device == "cuda":
+            self.logger.info(
+                "Transferring index from CUDA to CPU for computation.")
+            self.cpu_index = faiss.index_gpu_to_cpu(self.cuda_index)
+            faiss.device = torch.device("cpu")
+
+    def save_index(self, index_name: str = "index"):
+        self.logger.info(f"Saving index {index_name}.")
         path = Path(self.folder_path)
         path.mkdir(exist_ok=True, parents=True)
 
@@ -145,12 +155,10 @@ class VectorStore:
             if original_pkl_path.exists():
                 shutil.copyfile(original_pkl_path, backup_pkl_path)
 
-            self.rebuild_index()
-
             index_to_save = self.index
             if self.device == "cuda":
                 self.logger.info(
-                    "Transferring index from GPU to CPU for saving.")
+                    "Transferring index from CUDA to CPU for saving.")
                 index_to_save = faiss.index_gpu_to_cpu(self.index)
                 torch.cuda.synchronize()  # Ensure all CUDA operations are complete
 
@@ -175,69 +183,13 @@ class VectorStore:
         self.logger.info(
             f"Save operation for {index_name} completed successfully.")
 
-    def save_index(self, index_name: str = "index"):
-        """
-        Queues a save task for the specified index. If a save operation is already in progress,
-        the task will wait in the queue until it's processed by the worker thread.
-        """
-        self.logger.info(f"Queueing save operation for {index_name}.")
-        self.save_tasks.put(index_name)
-
-    def rebuild_index(self):
-        """
-        Rebuilds the FAISS index based on the current state of the docstore. This is useful if the
-        embedding model has changed or if the index has become corrupted or out-of-sync with the docstore.
-        """
-        with self._lock:
-            try:
-                faiss = dependable_faiss_import()
-                d = self.embedding.model.get_sentence_embedding_dimension()
-                new_index_cpu = faiss.IndexFlatL2(d)
-
-                all_docs = list(self.docstore.values())
-                all_ids = list(self.docstore.keys())
-
-                def embed_docs(docs: List[Document]):
-                    return np.array(self.embedding._embed_texts(
-                        [doc.page_content for doc in docs]), dtype=np.float32)
-
-                num_threads = 12
-                chunk_size = len(all_docs) // num_threads
-                chunks = [all_docs[i:i + chunk_size]
-                          for i in range(0, len(all_docs), chunk_size)]
-                with ThreadPoolExecutor(max_workers=num_threads) as executor:
-                    results = executor.map(embed_docs, chunks)
-                embeddings = np.concatenate(list(results))
-
-                new_index_cpu.add(embeddings)
-                self.index_to_docstore_id = {
-                    i: doc_id for i, doc_id in enumerate(all_ids)}
-
-                if self.device == 'cuda':
-                    if not self.gpu_resources:
-                        self.gpu_resources = faiss.StandardGpuResources()
-                    self.index = faiss.index_cpu_to_gpu(
-                        self.gpu_resources, 0, new_index_cpu)
-                    torch.cuda.synchronize()
-                else:
-                    self.index = new_index_cpu
-
-                self.logger.info(
-                    "Index has been successfully rebuilt and reloaded.")
-            except Exception as e:
-                self.logger.error(f"Error during index rebuild: {e}")
-                raise
-
-    def remove_documents_by_id(
-        self, target_id_list: Optional[List[str]]
-    ) -> List[Document]:
+    def remove_documents_by_id(self, target_id_list: Optional[List[str]]) -> List[Document]:
         if target_id_list is None:
             self.docstore = {}
             self.index_to_docstore_id = {}
             n_removed = self.index.ntotal
-            n_total = self.index.ntotal
             self.index.reset()
-            return n_removed, n_total
+            return n_removed, n_removed
 
         set_ids = set(target_id_list)
         if len(set_ids) != len(target_id_list):
@@ -250,7 +202,6 @@ class VectorStore:
             if d_id in target_id_list
         ]
         n_removed = len(index_ids)
-        n_total = self.index.ntotal
         removed_documents = [self.docstore[d_id]
                              for d_id in target_id_list if d_id in self.docstore]
 
@@ -266,10 +217,59 @@ class VectorStore:
         for i_id, d_id in zip(index_ids, target_id_list):
             del self.docstore[d_id]
             del self.index_to_docstore_id[i_id]
+
+        # Rebuild the index_to_docstore_id mapping
         self.index_to_docstore_id = {
-            i: d_id for i, d_id in enumerate(self.index_to_docstore_id.values())
+            i: doc_id for i, doc_id in enumerate(self.index_to_docstore_id.values())
         }
+
+        self.rebuild_index()  # Trigger rebuild after deletion
         return removed_documents
+
+    def rebuild_index(self):
+        try:
+            faiss = dependable_faiss_import()
+            d = self.embedding.model.get_sentence_embedding_dimension()
+            new_index_cpu = faiss.IndexFlatL2(d)
+
+            all_docs = list(self.docstore.values())
+            all_ids = list(self.docstore.keys())
+
+            self.logger.info(f"Starting to rebuild index with {
+                len(all_docs)} documents.")
+
+            new_docstore = {}
+            new_index_to_docstore_id = {}
+
+            for i, doc in enumerate(all_docs):
+                embeddings = self.embedding._embed_texts([doc.page_content])
+                embeddings = np.array(embeddings, dtype=np.float32)
+
+                new_index_cpu.add(embeddings)
+                new_docstore[all_ids[i]] = doc
+                new_index_to_docstore_id[i] = all_ids[i]
+
+                if i % 100 == 0:
+                    self.logger.info(
+                        f"Processed {i}/{len(all_docs)} documents.")
+
+            self.docstore = new_docstore
+            self.index_to_docstore_id = new_index_to_docstore_id
+
+            if self.device == "cuda":
+                if not self.gpu_resources:
+                    self.gpu_resources = faiss.StandardGpuResources()
+                self.index = faiss.index_cpu_to_gpu(
+                    self.gpu_resources, 0, new_index_cpu)
+                torch.cuda.synchronize()
+            else:
+                self.index = new_index_cpu
+
+            self.logger.info(
+                "Index has been successfully rebuilt and reloaded.")
+        except Exception as e:
+            self.logger.error(f"Error during index rebuild: {e}")
+            raise
 
     def delete_documents_by_ids(self, target_ids: List[int]) -> List[Document]:
         if target_ids is None or len(target_ids) < 1:
@@ -324,21 +324,14 @@ class VectorStore:
                     break
 
             if not is_duplicate:
-                with self._lock:
-                    if self.device == "cuda":
-                        index_cpu = faiss.index_gpu_to_cpu(self.index)
-                        index_cpu.add(np.array([embed], dtype=np.float32))
-                        self.index = faiss.index_cpu_to_gpu(
-                            self.gpu_resources, 0, index_cpu)
-                        torch.cuda.synchronize()
-                    else:
-                        self.index.add(np.array([embed], dtype=np.float32))
+                self._move_to_gpu_if_needed()
+                self.index.add(np.array([embed], dtype=np.float32))
 
-                    doc_id = ids[i]
-                    self.docstore[doc_id] = doc
-                    self.index_to_docstore_id[len(
-                        self.index_to_docstore_id)] = doc_id
-                    added_docs.append(doc)
+                doc_id = ids[i]
+                self.docstore[doc_id] = doc
+                self.index_to_docstore_id[len(
+                    self.index_to_docstore_id)] = doc_id
+                added_docs.append(doc)
 
         return added_docs
 
@@ -350,13 +343,13 @@ class VectorStore:
         fetch_k: int = 20,
         **kwargs: Any,
     ) -> List[Tuple[Document, float]]:
+
         vector = np.array([embedding], dtype=np.float32)
         scores, indices = self.index.search(
             vector, k if filter is None else fetch_k)
         docs = []
         for j, i in enumerate(indices[0]):
-            if i == -1:
-                # This happens when not enough docs are returned.
+            if i == -1:  # This happens when not enough docs are returned.
                 continue
             _id = self.index_to_docstore_id[i]
             doc = self.docstore.get(_id)

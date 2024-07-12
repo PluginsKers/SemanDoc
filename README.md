@@ -9,11 +9,12 @@
 - [目录](#目录)
 - [介绍](#介绍)
 - [快速上手](#快速上手)
-  - [1.环境配置](#1环境配置)
-  - [2.模型下载](#2模型下载)
-  - [3.初始化知识库和配置文件](#3初始化知识库和配置文件)
-  - [4.启动项目程序](#4启动项目程序)
-  - [5.注意事项](#5注意事项)
+  - [环境配置](#环境配置)
+    - [CUDA加速检索](#cuda加速检索)
+  - [模型下载](#模型下载)
+  - [配置文件](#配置文件)
+  - [启动项目程序](#启动项目程序)
+  - [注意事项](#注意事项)
 - [使用案例](#使用案例)
 - [贡献指南](#贡献指南)
 - [许可证](#许可证)
@@ -21,7 +22,7 @@
 
 ### 介绍
 
-💡 受到项目 [Langchain-Chatchat](https://github.com/chatchat-space/Langchain-Chatchat) 的启发，实现了一个碎片化信息高效检索的方案。
+💡 受到项目 [Langchain-Chatchat](https://github.com/chatchat-space/Langchain-Chatchat) 的启发，实现了一个开箱即用的碎片化信息高效检索的方案。
 
 项目使用 SQLite 作为轻量数据库进行文档和用户的管理，使用了 [facebookresearch/faiss](https://github.com/facebookresearch/faiss) 的高维度加速接口进行文件检索。本项目提供大量接口以供开发，部署轻便，现在支持企业微信应用的快速接入。
 
@@ -29,7 +30,7 @@
 
 ### 快速上手
 
-#### 1.环境配置
+#### 环境配置
 
 - 推荐使用 Python 3.9.16 版本。
   
@@ -46,7 +47,17 @@ $ pip install -r requirements.txt
 # 默认依赖包括基本运行环境（FAISS向量库）。
 ```
 
-#### 2.模型下载
+##### CUDA加速检索
+
+如果要使用 GPU 加速 `faiss` 请使用下面方法安装：
+
+```bash
+$ conda install -c pytorch -c nvidia faiss-gpu=1.8.0
+```
+
+具体方法参见 [官方文档](https://github.com/facebookresearch/faiss/blob/main/INSTALL.md)
+
+#### 模型下载
 
 注意：大语言模型可选，仅仅使用文档管理就无需下载大语言模型。
 
@@ -68,28 +79,28 @@ $ git clone https://huggingface.co/BAAI/bge-m3
 $ git clone https://huggingface.co/BAAI/bge-reranker-large
 ```
 
-#### 3.初始化知识库和配置文件
+#### 配置文件
 
 将项目根目录下的 `config.py.template` 改名为 `config.py` 并且按照要求完善配置信息。
 
 注意：本项目只有这一个配置文件。
 
-#### 4.启动项目程序
+#### 启动项目程序
 
 在项目下运行：
 
 ```bash
 # 运行主程序
-$ python run.py
+$ python app.py
 ```
 
-#### 5.注意事项
+#### 注意事项
 
 项目默认使用 GPU 加速，启动之前需要配置 `CUDA_VISIBLE_DEVICES` 参数。
 
 ```bash
 # 仅使用 cuda:0 GPU进行推理加速
-$ CUDA_VISIBLE_DEVICES=0 python run.py
+$ CUDA_VISIBLE_DEVICES=0 python app.py
 ```
 
 在实验中，使用ChatGLM3-6B模型、BGE-M3检索模型和BGE-reranker-large重排序模型时需要至少14GB的显存。采用量化版本时，显存需求降至10GB。若不部署大语言模型，所需显存进一步减少至1GB以下。
