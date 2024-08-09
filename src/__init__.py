@@ -6,6 +6,7 @@ from functools import wraps
 from typing import Optional
 
 from config import BaseConfig
+from src.modules.models.classify import IntentClassifier
 from src.modules.models.tools_manager import ToolsManager
 from src.modules.database import DatabaseManager
 from src.modules.models import Reranker, LLM
@@ -44,6 +45,7 @@ class ApplicationManager(BaseConfig):
         self.database_instance = None
         self.llm_model = None
         self.reranker_model = None
+        self.intent_classifier = None
 
         self.tools_manager = ToolsManager()
 
@@ -125,6 +127,15 @@ class ApplicationManager(BaseConfig):
 
             self.logger.info(f"Cannot initialize LLM Model: {missing_attr}")
 
+        if not self.intent_classifier:
+            self.logger.info("Initializing Intent Classifier...")
+            self.intent_classifier = IntentClassifier(
+                self.EMBEDDING_QUERY_INSTRUCTION,
+                self.MODEL_PATH,
+                self.device
+            )
+            self.logger.info("Intent Classifier initialized!")
+
     def get_reranker(self) -> Optional[Reranker]:
         """Returns the reranker model instance."""
         return self.reranker_model
@@ -149,6 +160,10 @@ class ApplicationManager(BaseConfig):
     def get_tools_manager(self) -> Optional[ToolsManager]:
         """Returns the tools manager instance."""
         return self.tools_manager
+
+    def get_intent_classifier(self) -> Optional[IntentClassifier]:
+        """Returns the intent classifier instance."""
+        return self.intent_classifier
 
 
 app_manager = ApplicationManager()

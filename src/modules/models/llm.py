@@ -50,9 +50,6 @@ class LLM:
         return response
 
     def get_response_by_tools(self, query: str, prompt: str) -> Union[str, dict]:
-        if prompt is None:
-            raise ValueError("Tools or prompt for GLM tools is not provided.")
-
         system_info = {
             "role": "system", "content": prompt, "tools": self.tools_manager.get_tools()}
         history = [system_info]
