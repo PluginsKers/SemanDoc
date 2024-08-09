@@ -235,8 +235,8 @@ class VectorStore:
             all_docs = list(self.docstore.values())
             all_ids = list(self.docstore.keys())
 
-            self.logger.info(f"Starting to rebuild index with {
-                len(all_docs)} documents.")
+            self.logger.info(
+                f"Starting to rebuild index with {len(all_docs)} documents.")
 
             new_docstore = {}
             new_index_to_docstore_id = {}
