@@ -58,7 +58,7 @@ def find_and_optimize_documents(query: str, tags: Optional[List[str]] = None) ->
             filter=metadata,
             k=10,
             score_threshold=score_threshold,
-            powerset=False
+            powerset=True
         )
 
         score_threshold = min(

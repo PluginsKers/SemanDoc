@@ -99,23 +99,20 @@ def extract_message_info(wecom_message_xml: str, **kwargs) -> Tuple[str, str, st
 
 
 def detect_user_intent(user_msg_content: str, llm: LLM) -> List[str]:
-
-    # TODO: Modular user expectation classifier.
+    intent_classifier = app_manager.get_intent_classifier()
+    if intent_classifier is None:
+        logger.warning("Intent classifier is not initialized")
+        return []
 
     try:
-        intents = llm.predict_intent(
-            user_msg_content,
-            app_manager.GLM_TOOLS_PROMPT
-        )
-        if isinstance(intents, str):
-            return [intents]
-        elif isinstance(intents, list) and all(isinstance(intent, str) for intent in intents):
-            return intents
-        else:
-            raise ValueError(
-                f"Unexpected type for intents: {type(intents)} with value: {intents}")
+        intent, confidence = intent_classifier.classify_intent(user_msg_content)
+        if intent is None or confidence == 0:
+            logger.info("No clear intent detected")
+            return []
+        logger.info(f"Detected intent: {intent} with confidence: {confidence}")
+        return [intent]
     except Exception as e:
-        logger.exception("Failed to determine intent with LLM: %s", e)
+        logger.exception("Failed to determine intent with classifier: %s", e)
 
     return []
 

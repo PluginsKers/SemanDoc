@@ -60,7 +60,9 @@ class LLM:
         prompt = prompt.format(message)
         return self.chat(prompt, history)
 
+    # 注意：此方法已弃用
     def predict_intent(self, query: str, prompt: str) -> Optional[str]:
+        # 此方法已不再使用，保留此代码仅供参考
         response = self.get_response_by_tools(query, prompt)
         if isinstance(response, dict):
             tool_observation = self.tools_manager.dispatch_tool(
