@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 
 from src import app_manager
-from src.services.document_service import find_and_optimize_documents
+from src.services.document_service import find_and_optimize_documents, evaluate_text_relevance
 from src.modules.models.llm import LLM
 from src.modules.document import Document
 from src.modules.wecom import (
@@ -33,6 +33,23 @@ async def process_message(wecom_message_xml: str, **kwargs) -> None:
             sender_id, user_msg_content, predicted_tags)
 
         documents = find_and_optimize_documents(**search_params)
+
+        if len(documents) == 0:
+            # 如果没有找到相关文档，尝试使用上下文进行检索
+            context_history = wecom_app.historys.get(sender_id)
+            if context_history:
+                context_query = " ".join([record['content'] for record in context_history.get_history()[-3:]])
+                context_search_params = build_search_params(
+                    sender_id, context_query, predicted_tags)
+                context_documents = find_and_optimize_documents(**context_search_params)
+                
+                # 检查上下文检索结果与用户问题的相关性
+                relevant_documents = []
+                for doc in context_documents:
+                    if evaluate_text_relevance(user_msg_content, doc.page_content):
+                        relevant_documents.append(doc)
+                
+                documents.extend(relevant_documents)
 
         if len(documents) > 0:
             optimized_documents_list = '\n - '.join(

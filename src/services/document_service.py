@@ -281,3 +281,23 @@ def get_documents_records(**kwargs) -> list:
         j['editor'] = userDB.get_user_by_id(j['editor_id'])
 
     return docs_records
+
+
+def evaluate_text_relevance(text1: str, text2: str) -> bool:
+    """
+    Evaluates the relevance between two texts using the vector store's embedding model.
+
+    Args:
+        text1 (str): The first text to compare.
+        text2 (str): The second text to compare.
+
+    Returns:
+        bool: True if the texts are relevant, False if they are not relevant.
+    """
+    store = app_manager.get_vector_store()
+    relevance_score = store.evaluate_text_relevance(text1, text2)
+    
+    # Define a threshold for relevance
+    RELEVANCE_THRESHOLD = 0.5  # This value can be adjusted based on your needs
+    
+    return relevance_score >= RELEVANCE_THRESHOLD

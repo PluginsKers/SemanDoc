@@ -93,6 +93,26 @@ class VectorStore:
         self.gpu_resources = None
         self.index = self._load_or_create_index()
 
+    def evaluate_text_relevance(self, text1: str, text2: str) -> float:
+        """
+        Evaluates the relevance between two texts using the vector store's embedding model.
+
+        Args:
+            text1 (str): The first text to compare.
+            text2 (str): The second text to compare.
+
+        Returns:
+            float: A relevance score between 0 and 1, where 1 indicates high relevance and 0 indicates low relevance.
+        """
+        # Generate embeddings for both texts
+        embedding1 = self.embedding._embed_texts([text1])[0]
+        embedding2 = self.embedding._embed_texts([text2])[0]
+
+        # Calculate cosine similarity
+        similarity = self._cosine_similarity(embedding1, embedding2)
+
+        return similarity
+
     def _load_or_create_index(self, index_name: str = "index"):
         path = Path(self.folder_path)
         faiss = dependable_faiss_import()

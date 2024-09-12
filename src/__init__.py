@@ -110,7 +110,6 @@ class ApplicationManager(BaseConfig):
                     "Initializing LLM Model... %s", self.LLM_MODEL_PATH)
                 self.llm_model = LLM(
                     model_name=self.LLM_MODEL_PATH,
-                    tools_manager=self.tools_manager,
                     device=self.device
                 )
                 self.logger.info(

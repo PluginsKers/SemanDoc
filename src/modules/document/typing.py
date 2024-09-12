@@ -139,7 +139,6 @@ class Tags:
         Generates all permutations based on tag priority. This method focuses on generating permutations
         that include all tags (n elements) and, when n > 2, permutations with one less tag (n-1 elements),
         but only those permutations that start with the highest priority tag or the second highest priority tag are included.
-        When there are only 2 tags, it will generate permutations for both tags individually.
 
         Returns:
             List[List[str]]: A list of permutations, where each permutation is a list of tags.
@@ -149,7 +148,6 @@ class Tags:
             - For each combination, it generates all possible permutations.
             - It then filters out those permutations that start with either the highest priority or the second highest priority tag.
             It is assumed that the tag list is already sorted in some manner to reflect their priority.
-            - When there are only 2 tags, it generates permutations for both tags individually.
             - Finally, the method ensures each permutation in the result set is unique by removing any duplicates.
 
         Note:
@@ -162,19 +160,14 @@ class Tags:
         result = []
         elements = self.tags
         n = len(elements)
-
-        if n == 2:
-            # When there are only 2 tags, generate permutations for both tags individually
-            result = [[elements[0]], [elements[1]], elements, list(reversed(elements))]
-        else:
-            # Generate all permutations for n and n-1 elements when n > 2
-            # Adjust range to include n-1 only if n > 2
-            for i in range(n, n - 2 if n > 2 else n - 1, -1):
-                for combination in combinations(elements, i):
-                    for perm in permutations(combination):
-                        # Only add if starting with the highest priority element or the second highest
-                        if perm[0] == elements[0] or perm[0] == elements[1]:
-                            result.append(list(perm))
+        # Generate all permutations for n and n-1 elements when n > 2
+        # Adjust range to include n-1 only if n > 2
+        for i in range(n, n - 2 if n > 2 else n - 1, -1):
+            for combination in combinations(elements, i):
+                for perm in permutations(combination):
+                    # Only add if starting with the highest priority element or the second highest
+                    if perm[0] == elements[0] or perm[0] == elements[1]:
+                        result.append(list(perm))
 
         # Eliminate duplicates
         final_result = []
@@ -183,6 +176,7 @@ class Tags:
                 final_result.append(item)
 
         return final_result
+
 
 
 
