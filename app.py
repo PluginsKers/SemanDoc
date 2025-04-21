@@ -22,16 +22,19 @@ app.add_middleware(
 )
 
 vector_store = VectorStore(
-    folder_path="./vector_store",
+    folder_path="./tmp",
     model_name="./models/embedders/m3e-base",
     device="cpu",
 )
 
+class MetadataBase(BaseModel):
+    ids: Optional[str] = None
+    tags: Optional[List[str]] = Field(default_factory=list)
+    categories: Optional[List[str]] = Field(default_factory=list)
 
 class DocumentBase(BaseModel):
     content: str
-    tags: Optional[List[str]] = Field(default_factory=list)
-    categories: Optional[List[str]] = Field(default_factory=list)
+    metadata: MetadataBase
 
 
 class DocumentCreate(DocumentBase):
@@ -39,8 +42,6 @@ class DocumentCreate(DocumentBase):
 
 
 class DocumentResponse(DocumentBase):
-    id: str
-
     class Config:
         from_attributes = True
 
@@ -50,11 +51,6 @@ class SearchQuery(BaseModel):
     k: int = 5
     tags: Optional[List[str]] = None
     categories: Optional[List[str]] = None
-
-
-class SearchResult(BaseModel):
-    results: List[DocumentResponse]
-
 
 def document_to_response(doc: Document) -> DocumentResponse:
     tags = []
@@ -72,14 +68,18 @@ def document_to_response(doc: Document) -> DocumentResponse:
             categories.append(str(cat))
 
     return DocumentResponse(
-        id=doc.metadata.ids, content=doc.content, tags=tags, categories=categories
+        content=doc.content,
+        metadata=MetadataBase(
+            ids=doc.metadata.ids,
+            tags=tags,
+            categories=categories
+        )
     )
 
 
-# API路由
 @app.get("/")
 async def root():
-    return {"message": "Welcome to the VectorStore API"}
+    return {"message": "Welcome to the SemanDoc API"}
 
 
 @app.post("/documents/", response_model=DocumentResponse)
@@ -87,18 +87,15 @@ async def create_document(document: DocumentCreate):
     try:
         doc = Document(
             content=document.content,
-            metadata=Metadata(tags=document.tags, categories=document.categories),
+            metadata=Metadata(tags=document.metadata.tags, categories=document.metadata.categories),
         )
-        doc_id = doc.metadata.ids
 
-        vector_store.add_documents([doc])
-        vector_store.save_index()
+        added_docs = vector_store.add_documents([doc])
 
-        for key, stored_doc in vector_store.docstore.items():
-            if stored_doc.metadata.ids == doc_id:
-                return document_to_response(stored_doc)
+        if not added_docs:
+            raise HTTPException(status_code=409, detail="Document is a duplicate and was not added")
 
-        return document_to_response(doc)
+        return document_to_response(added_docs[0])
     except Exception as e:
         print(f"Error creating document: {e}")
         raise HTTPException(status_code=500, detail=f"Create document failed: {str(e)}")
@@ -108,31 +105,16 @@ async def create_document(document: DocumentCreate):
 async def create_documents_batch(documents: List[DocumentCreate]):
     try:
         docs = []
-        doc_ids = []
         for doc_data in documents:
             doc = Document(
                 content=doc_data.content,
-                metadata=Metadata(tags=doc_data.tags, categories=doc_data.categories),
+                metadata=Metadata(tags=doc_data.metadata.tags, categories=doc_data.metadata.categories),
             )
             docs.append(doc)
-            doc_ids.append(doc.metadata.ids)
 
-        vector_store.add_documents(docs)
-        vector_store.save_index()
+        added_docs = vector_store.add_documents(docs)
 
-        result_docs = []
-        for doc_id in doc_ids:
-            for key, stored_doc in vector_store.docstore.items():
-                if stored_doc.metadata.ids == doc_id:
-                    result_docs.append(stored_doc)
-                    break
-            else:
-                for doc in docs:
-                    if doc.metadata.ids == doc_id:
-                        result_docs.append(doc)
-                        break
-
-        return [document_to_response(doc) for doc in result_docs]
+        return [document_to_response(doc) for doc in added_docs]
     except Exception as e:
         print(f"Error creating documents batch: {e}")
         raise HTTPException(
@@ -174,7 +156,6 @@ async def delete_document(document_id: str):
         result_doc = document_to_response(doc_found)
 
         vector_store.delete_documents_by_ids([document_id])
-        vector_store.save_index()
 
         return result_doc
     except Exception as e:
@@ -184,7 +165,7 @@ async def delete_document(document_id: str):
         raise HTTPException(status_code=500, detail=f"Delete document failed: {str(e)}")
 
 
-@app.post("/documents/search/", response_model=SearchResult)
+@app.post("/documents/search/", response_model=List[DocumentResponse])
 async def search_documents(search_query: SearchQuery):
     try:
         metadata_filter = None
@@ -197,7 +178,10 @@ async def search_documents(search_query: SearchQuery):
             query=search_query.query, k=search_query.k, metadata_filter=metadata_filter
         )
 
-        return SearchResult(results=[document_to_response(doc) for doc in results])
+        if not results:
+            return []
+
+        return [document_to_response(doc) for doc in results]
     except Exception as e:
         print(f"Error searching documents: {e}")
         raise HTTPException(
@@ -244,6 +228,44 @@ async def list_documents(
     except Exception as e:
         print(f"Error listing documents: {e}")
         raise HTTPException(status_code=500, detail=f"List documents failed: {str(e)}")
+
+
+@app.put("/documents/{document_id}", response_model=DocumentResponse)
+async def update_document(document_id: str, document: DocumentCreate):
+    try:
+        doc_found = None
+        for key, doc in vector_store.docstore.items():
+            if doc.metadata.ids == document_id:
+                doc_found = doc
+                break
+
+        if not doc_found:
+            raise HTTPException(
+                status_code=404, detail=f"Document ID {document_id} does not exist"
+            )
+
+        vector_store.delete_documents_by_ids([document_id])
+
+        new_doc = Document(
+            content=document.content,
+            metadata=Metadata(
+                ids=document_id,
+                tags=document.metadata.tags,
+                categories=document.metadata.categories
+            ),
+        )
+
+        added_docs = vector_store.add_documents([new_doc])
+
+        if not added_docs:
+            raise HTTPException(status_code=500, detail="Failed to update document")
+
+        return document_to_response(added_docs[0])
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        print(f"Error updating document: {e}")
+        raise HTTPException(status_code=500, detail=f"Update document failed: {str(e)}")
 
 
 if __name__ == "__main__":

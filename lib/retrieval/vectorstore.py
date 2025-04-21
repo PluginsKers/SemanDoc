@@ -208,6 +208,12 @@ class VectorStore:
             all_docs = list(self.docstore.values())
             all_ids = list(self.docstore.keys())
 
+            if not all_docs:
+                self.index = new_index_cpu
+                self.index_to_docstore_id = {}
+                self._lock.release()
+                return
+
             def embed_docs(docs: list[Document]):
                 return np.array(
                     self.embedding._embed_texts([doc.content for doc in docs]),
@@ -414,10 +420,15 @@ class VectorStore:
         Returns:
             List[Document]: List of documents matching the query.
         """
+        if self.index.ntotal == 0:
+            return []
+
         embeddings = self.embedding._embed_texts([query])
 
         fetch_k = k * 4 if metadata_filter else k
         fetch_k = min(fetch_k, self.index.ntotal, 100)
+        if fetch_k <= 0:
+            return []
 
         docs_and_scores = self.similarity_search_with_score_by_vector(
             embeddings[0],
