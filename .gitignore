@@ -1,25 +1,16 @@
 .vscode
-
-venv/
-
-*.pyc
-
-*.index
-
-/notebook
-
-/data
+.idea
+__pycache__
+.*/
 
 .env
 
+*.pyc
 *.pyo
+*.index
+*.faiss
+*.pkl
+*.log
 
-log
-
-config.py
-
-__pycache__
-
-.*/
-
-.idea
+venv/
+tmp/

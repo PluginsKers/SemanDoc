@@ -15,8 +15,8 @@ from typing import List, Dict, Any, Optional, Sized, Tuple
 from concurrent.futures import ThreadPoolExecutor
 
 
-from src.modules.document.typing import Document, Metadata
-from src.modules.document.embeddings import HuggingFaceEmbeddings
+from lib.retrieval.schemas import Document, MetadataFilter
+from lib.retrieval.embeddings import HuggingFaceEmbeddings
 
 logger = logging.getLogger(__name__)
 
@@ -64,16 +64,22 @@ def _len_check_if_sized(x: Any, y: Any, x_name: str, y_name: str) -> None:
 
 
 class VectorStore:
-    def __init__(self, folder_path: str, embedding_model_name: str, query_instruction: str, device="cpu"):
+    def __init__(
+        self,
+        folder_path: str,
+        model_name: str = "moka-ai/m3e-base",
+        query_instruction: str = "为这个句子生成表示以用于检索相关文章：",
+        device: str = "cpu",
+    ):
         """
         Initializes the VectorStore with the specified folder path for saving indices,
         the name of the embedding model, and the computing device.
         """
         self.device = device
         self.embedding = HuggingFaceEmbeddings(
-            model_name=embedding_model_name,
+            model_name=model_name,
             device=self.device,
-            query_instruction=query_instruction
+            query_instruction=query_instruction,
         )
 
         self.folder_path = folder_path
@@ -164,7 +170,8 @@ class VectorStore:
                 pickle.dump((self.docstore, self.index_to_docstore_id), f)
         except Exception as e:
             logger.error(
-                f"Save operation failed: {e}, attempting to restore from backup.")
+                f"Save operation failed: {e}, attempting to restore from backup."
+            )
             if backup_faiss_path.exists():
                 shutil.copyfile(backup_faiss_path, original_faiss_path)
             if backup_pkl_path.exists():
@@ -202,13 +209,17 @@ class VectorStore:
             all_ids = list(self.docstore.keys())
 
             def embed_docs(docs: list[Document]):
-                return np.array(self.embedding._embed_texts(
-                    [doc.page_content for doc in docs]), dtype=np.float32)
+                return np.array(
+                    self.embedding._embed_texts([doc.content for doc in docs]),
+                    dtype=np.float32,
+                )
 
             num_threads = 12
-            chunk_size = len(all_docs) // num_threads
-            chunks = [all_docs[i:i + chunk_size]
-                      for i in range(0, len(all_docs), chunk_size)]
+            chunk_size = max(1, len(all_docs) // num_threads)
+            chunks = [
+                all_docs[i : i + chunk_size]
+                for i in range(0, len(all_docs), chunk_size)
+            ]
             with ThreadPoolExecutor(max_workers=num_threads) as executor:
                 results = executor.map(embed_docs, chunks)
             embeddings = np.concatenate(list(results))
@@ -217,19 +228,20 @@ class VectorStore:
                 try:
                     new_index_cpu.add(embeddings)
                     self.index_to_docstore_id = {
-                        i: doc_id for i, doc_id in enumerate(all_ids)}
+                        i: doc_id for i, doc_id in enumerate(all_ids)
+                    }
 
-                    if self.device == 'cuda':
+                    if self.device == "cuda":
                         if not self.gpu_resources:
                             self.gpu_resources = faiss.StandardGpuResources()
                         self.index = faiss.index_cpu_to_gpu(
-                            self.gpu_resources, 0, new_index_cpu)
+                            self.gpu_resources, 0, new_index_cpu
+                        )
                         torch.cuda.synchronize()
                     else:
                         self.index = new_index_cpu
 
-                    logger.info(
-                        "Index has been successfully rebuilt and reloaded.")
+                    logger.info("Index has been successfully rebuilt and reloaded.")
                 except Exception as e:
                     logger.error(f"Error during index rebuild: {e}")
                     raise
@@ -254,8 +266,7 @@ class VectorStore:
             return n_removed, n_total
         set_ids = set(target_id_list)
         if len(set_ids) != len(target_id_list):
-            raise VectorStoreError(
-                "Duplicate ids in the list of ids to remove.")
+            raise VectorStoreError("Duplicate ids in the list of ids to remove.")
         index_ids = [
             i_id
             for i_id, d_id in self.index_to_docstore_id.items()
@@ -263,14 +274,14 @@ class VectorStore:
         ]
         n_removed = len(index_ids)
         n_total = self.index.ntotal
-        removed_documents = [self.docstore[d_id]
-                             for d_id in target_id_list if d_id in self.docstore]
+        removed_documents = [
+            self.docstore[d_id] for d_id in target_id_list if d_id in self.docstore
+        ]
 
         if self.device == "cuda":
             index_cpu = faiss.index_gpu_to_cpu(self.index)
             index_cpu.remove_ids(np.array(index_ids, dtype=np.int64))
-            self.index = faiss.index_cpu_to_gpu(
-                self.gpu_resources, 0, index_cpu)
+            self.index = faiss.index_cpu_to_gpu(self.gpu_resources, 0, index_cpu)
             torch.cuda.synchronize()
         else:
             self.index.remove_ids(np.array(index_ids, dtype=np.int64))
@@ -290,34 +301,35 @@ class VectorStore:
         id_to_remove = []
         for _id, doc in self.docstore.items():
             to_remove = False
-            if doc.metadata.get_ids() in target_ids:
+            if doc.metadata.ids in target_ids:
                 to_remove = True
             if to_remove:
                 id_to_remove.append(_id)
         return self.remove_documents_by_id(id_to_remove)
 
-    def _cosine_similarity(self, doc1_embedding: np.ndarray, doc2_embedding: np.ndarray) -> float:
+    def _cosine_similarity(
+        self, doc1_embedding: np.ndarray, doc2_embedding: np.ndarray
+    ) -> float:
         doc1_embedding = torch.tensor(doc1_embedding, dtype=torch.float32)
         doc2_embedding = torch.tensor(doc2_embedding, dtype=torch.float32)
         cos_sim = F.cosine_similarity(
-            doc1_embedding.unsqueeze(0), doc2_embedding.unsqueeze(0))
+            doc1_embedding.unsqueeze(0), doc2_embedding.unsqueeze(0)
+        )
         return cos_sim.item()
 
     def add_documents(
         self,
         docs: List[Document],
         ids: Optional[List[str]] = None,
-        similarity_threshold: float = 0.9
+        similarity_threshold: float = 0.9,
     ) -> List[Document]:
-        embeds = self.embedding._embed_texts(
-            [doc.page_content for doc in docs]
-        )
+        embeds = self.embedding._embed_texts([doc.content for doc in docs])
 
         embeds = np.asarray(embeds, dtype=np.float32)
         ids = ids or [str(uuid.uuid4()) for _ in docs]
 
-        _len_check_if_sized(embeds, docs, 'embeds', 'docs')
-        _len_check_if_sized(ids, docs, 'ids', 'docs')
+        _len_check_if_sized(embeds, docs, "embeds", "docs")
+        _len_check_if_sized(ids, docs, "ids", "docs")
 
         added_docs = []
 
@@ -325,16 +337,13 @@ class VectorStore:
             embed = embeds[i]
 
             similar_docs = self.similarity_search_with_score_by_vector(
-                embedding=embed,
-                k=2
+                embedding=embed, k=2
             )
 
             is_duplicate = False
             for similar_doc, score in similar_docs:
-                similar_embed = self.embedding._embed_texts(
-                    [similar_doc.page_content])[0]
-                cosine_similarity = self._cosine_similarity(
-                    embed, similar_embed)
+                similar_embed = self.embedding._embed_texts([similar_doc.content])[0]
+                cosine_similarity = self._cosine_similarity(embed, similar_embed)
                 if cosine_similarity > similarity_threshold:
                     is_duplicate = True
                     break
@@ -345,15 +354,15 @@ class VectorStore:
                         index_cpu = faiss.index_gpu_to_cpu(self.index)
                         index_cpu.add(np.array([embed], dtype=np.float32))
                         self.index = faiss.index_cpu_to_gpu(
-                            self.gpu_resources, 0, index_cpu)
+                            self.gpu_resources, 0, index_cpu
+                        )
                         torch.cuda.synchronize()
                     else:
                         self.index.add(np.array([embed], dtype=np.float32))
 
                     doc_id = ids[i]
                     self.docstore[doc_id] = doc
-                    self.index_to_docstore_id[len(
-                        self.index_to_docstore_id)] = doc_id
+                    self.index_to_docstore_id[len(self.index_to_docstore_id)] = doc_id
                     added_docs.append(doc)
 
         return added_docs
@@ -362,14 +371,12 @@ class VectorStore:
         self,
         embedding: List[float],
         k: int = 4,
-        filter: Optional[Dict[str, Any]] = None,
-        fetch_k: int = 20,
         **kwargs: Any,
     ) -> List[Tuple[Document, float]]:
         vector = np.array([embedding], dtype=np.float32)
-        scores, indices = self.index.search(
-            vector, k if filter is None else fetch_k)
+        scores, indices = self.index.search(vector, k)
         docs = []
+
         for j, i in enumerate(indices[0]):
             if i == -1:
                 # This happens when not enough docs are returned.
@@ -378,20 +385,13 @@ class VectorStore:
             doc = self.docstore.get(_id)
             if not isinstance(doc, Document):
                 raise VectorStoreError(
-                    f"Could not find document for id {_id}, got {doc}")
-            if filter is not None:
-                filter = {
-                    key: [value] if not isinstance(value, list) else value
-                    for key, value in filter.items()
-                }
-                if all(doc.metadata.to_dict().get(key) in value for key, value in filter.items()):
-                    docs.append((doc, scores[0][j]))
-            else:
-                docs.append((doc, scores[0][j]))
+                    f"Could not find document for id {_id}, got {doc}"
+                )
+            docs.append((doc, scores[0][j]))
 
         score_threshold = kwargs.get("score_threshold")
         if score_threshold is not None:
-            cmp = (operator.le)
+            cmp = operator.le
             docs = [
                 (doc, similarity)
                 for doc, similarity in docs
@@ -400,33 +400,41 @@ class VectorStore:
         return docs[:k]
 
     def search(
-        self,
-        query,
-        k=5,
-        filter: Optional[Metadata] = None,
-        fetch_k: int = 20,
-        **kwargs
+        self, query, k=5, metadata_filter: Optional[MetadataFilter] = None, **kwargs
     ) -> List[Document]:
+        """
+        Search for documents similar to the query.
 
-        if filter is not None:
-            powerset = kwargs.get("powerset", True)
-            filter = filter.to_filter(powerset)
+        Args:
+            query: The search query.
+            k: Number of results to return.
+            metadata_filter: Optional filter to apply to document metadata.
+            **kwargs: Additional arguments.
 
-        score_threshold = kwargs.get("score_threshold")
-        threshold_offset = 0.01
-        if score_threshold is not None:
-            kwargs.update(
-                {"score_threshold": score_threshold + threshold_offset})
-
+        Returns:
+            List[Document]: List of documents matching the query.
+        """
         embeddings = self.embedding._embed_texts([query])
+
+        fetch_k = k * 4 if metadata_filter else k
+        fetch_k = min(fetch_k, self.index.ntotal, 100)
+
         docs_and_scores = self.similarity_search_with_score_by_vector(
             embeddings[0],
-            k,
-            filter=filter,
-            fetch_k=fetch_k,
+            fetch_k,
             **kwargs,
         )
 
-        vd_docs = [doc for doc, _ in docs_and_scores if doc.is_valid()]
+        vd_docs = [doc for doc, _ in docs_and_scores if doc.is_valid]
+
+        if metadata_filter:
+            logger.info(f"Applying metadata filter to {len(vd_docs)} valid documents")
+            filtered_docs = [
+                doc for doc in vd_docs if metadata_filter.match(doc.metadata)
+            ]
+            logger.info(
+                f"Found {len(filtered_docs)} documents matching filter criteria"
+            )
+            return filtered_docs[:k]
 
         return vd_docs[:k]
