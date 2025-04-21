@@ -31,6 +31,7 @@ class SearchQuery(BaseModel):
     k: int = 5
     tags: Optional[List[str]] = None
     categories: Optional[List[str]] = None
+    score_threshold: Optional[float] = None
 
 class StatsResponse(BaseModel):
     total_documents: int
@@ -158,7 +159,10 @@ def init_routes(vector_store: VectorStore):
                 )
 
             results = vector_store.search(
-                query=search_query.query, k=search_query.k, metadata_filter=metadata_filter
+                query=search_query.query, 
+                k=search_query.k, 
+                metadata_filter=metadata_filter,
+                score_threshold=search_query.score_threshold
             )
 
             if not results:

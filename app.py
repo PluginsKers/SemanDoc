@@ -4,6 +4,7 @@ import uvicorn
 import logging
 import argparse
 from typing import Optional
+from contextlib import asynccontextmanager
 
 from lib.retrieval.vectorstore import VectorStore
 from lib.retrieval.persistence import PersistenceManager
@@ -18,35 +19,16 @@ logger = logging.getLogger(__name__)
 persistence_manager: Optional[PersistenceManager] = None
 save_interval: int = 300
 
-app = FastAPI(
-    title="SemanDoc API",
-    description="Document retrieval and search API",
-    version="1.0.0",
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+# 初始化向量存储
 vector_store = VectorStore(
     folder_path="./tmp",
     model_name="./models/embedders/m3e-base",
     device="cpu",
 )
 
-document_router = init_routes(vector_store)
-app.include_router(document_router)
-
-@app.get("/")
-async def root():
-    return {"message": "Welcome to the SemanDoc API"}
-
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     global persistence_manager
     logger.info("Starting up SemanDoc API")
     
@@ -59,10 +41,10 @@ async def startup_event():
     )
     persistence_manager.start()
     logger.info("Vector store persistence manager started")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    global persistence_manager
+    
+    yield
+    
+    # Shutdown
     logger.info("Shutting down SemanDoc API")
     
     if persistence_manager:
@@ -75,6 +57,28 @@ async def shutdown_event():
             logger.error(f"Error during shutdown: {e}")
     else:
         logger.warning("Persistence manager was not initialized")
+
+app = FastAPI(
+    title="SemanDoc API",
+    description="Document retrieval and search API",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+document_router = init_routes(vector_store)
+app.include_router(document_router)
+
+@app.get("/")
+async def root():
+    return {"message": "Welcome to the SemanDoc API"}
 
 def parse_args():
     global save_interval

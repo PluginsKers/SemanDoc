@@ -416,6 +416,8 @@ class VectorStore:
             k: Number of results to return.
             metadata_filter: Optional filter to apply to document metadata.
             **kwargs: Additional arguments.
+                score_threshold: Optional float. If provided, only return documents with a similarity score
+                                less than or equal to this threshold (lower is better for L2 distance).
 
         Returns:
             List[Document]: List of documents matching the query.
