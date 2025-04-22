@@ -74,6 +74,12 @@ class VectorStore:
         """
         Initializes the VectorStore with the specified folder path for saving indices,
         the name of the embedding model, and the computing device.
+
+        Args:
+            folder_path: Path to save/load index files
+            model_name: Name of the embedding model to use
+            query_instruction: Instruction for embedding model when processing queries
+            device: Computing device (cpu or cuda)
         """
         self.device = device
         self.embedding = HuggingFaceEmbeddings(

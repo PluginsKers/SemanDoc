@@ -54,13 +54,13 @@ class MetadataFilter:
         if self.ids is not None and metadata.ids not in self.ids:
             return False
 
-        if self.tags is not None and not any(tag in metadata.tags for tag in self.tags):
-            return False
+        if self.tags is not None and len(self.tags) > 0:
+            if not any(tag in metadata.tags for tag in self.tags):
+                return False
 
-        if self.categories is not None and not any(
-            cat in metadata.categories for cat in self.categories
-        ):
-            return False
+        if self.categories is not None and len(self.categories) > 0:
+            if not any(cat in metadata.categories for cat in self.categories):
+                return False
 
         if self.custom_filter is not None and not self.custom_filter(metadata):
             return False
