@@ -9,6 +9,8 @@ from contextlib import asynccontextmanager
 from lib.retrieval.vectorstore import VectorStore
 from lib.retrieval.persistence import PersistenceManager
 from lib.api.document_routes import init_routes
+from lib.api.apikey_routes import router as apikey_router
+from lib.db.database import Base, engine
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -19,7 +21,7 @@ persistence_manager: Optional[PersistenceManager] = None
 save_interval: int = 300
 
 vector_store = VectorStore(
-    folder_path="./tmp", model_name="./models/embedders/m3e-base", device="cpu"
+    folder_path="./data", model_name="./models/embedders/m3e-base", device="cpu"
 )
 
 
@@ -28,6 +30,10 @@ async def lifespan(app: FastAPI):
     # Startup
     global persistence_manager
     logger.info("Starting up SemanDoc API")
+
+    # Init db
+    logger.info("Initializing database tables")
+    Base.metadata.create_all(bind=engine)
 
     logger.info(
         f"Starting vector store persistence manager with interval: {save_interval}s"
@@ -72,6 +78,7 @@ app.add_middleware(
 
 document_router = init_routes(vector_store)
 app.include_router(document_router)
+app.include_router(apikey_router)
 
 
 @app.get("/")

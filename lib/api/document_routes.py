@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, Header, Query
+from fastapi import APIRouter, HTTPException, Header, Query, Depends
 from typing import List, Optional, Dict
 from pydantic import BaseModel, Field
 import logging
 
 from lib.retrieval.vectorstore import VectorStore
 from lib.retrieval.schemas import Document, Metadata, MetadataFilter
+from lib.auth.dependencies import get_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +81,9 @@ def init_routes(vector_store: VectorStore):
         response_model=DocumentResponse,
         description="Create a new document in the vector store",
     )
-    async def create_document(document: DocumentCreate):
+    async def create_document(
+        document: DocumentCreate, user_id: Optional[str] = Depends(get_api_key)
+    ):
         try:
             doc = Document(
                 content=document.content,
@@ -112,6 +115,7 @@ def init_routes(vector_store: VectorStore):
         content: str,
         tags: Optional[List[str]] = Query(default_factory=list),
         categories: Optional[List[str]] = Query(default_factory=list),
+        user_id: Optional[str] = Depends(get_api_key),
     ):
         try:
             doc = Document(
@@ -141,7 +145,9 @@ def init_routes(vector_store: VectorStore):
         response_model=List[DocumentResponse],
         description="Create multiple documents in a single batch operation",
     )
-    async def create_documents_batch(documents: List[DocumentCreate]):
+    async def create_documents_batch(
+        documents: List[DocumentCreate], user_id: Optional[str] = Depends(get_api_key)
+    ):
         try:
             docs = []
             for doc_data in documents:
@@ -168,7 +174,9 @@ def init_routes(vector_store: VectorStore):
         response_model=DocumentResponse,
         description="Retrieve a specific document by its ID",
     )
-    async def get_document(document_id: str):
+    async def get_document(
+        document_id: str, user_id: Optional[str] = Depends(get_api_key)
+    ):
         try:
             for key, doc in vector_store.docstore.items():
                 if doc.metadata.ids == document_id:
@@ -190,7 +198,9 @@ def init_routes(vector_store: VectorStore):
         response_model=DocumentResponse,
         description="Delete a document by its ID",
     )
-    async def delete_document(document_id: str):
+    async def delete_document(
+        document_id: str, user_id: Optional[str] = Depends(get_api_key)
+    ):
         try:
             doc_found = None
             for key, doc in vector_store.docstore.items():
@@ -221,7 +231,9 @@ def init_routes(vector_store: VectorStore):
         response_model=List[DocumentResponse],
         description="Search documents using semantic similarity and optional metadata filters",
     )
-    async def search_documents(search_query: SearchQuery):
+    async def search_documents(
+        search_query: SearchQuery, user_id: Optional[str] = Depends(get_api_key)
+    ):
         try:
             metadata_filter = None
             if search_query.tags or search_query.categories:
@@ -256,6 +268,7 @@ def init_routes(vector_store: VectorStore):
         limit: int = 100,
         tag: Optional[str] = None,
         category: Optional[str] = None,
+        user_id: Optional[str] = Depends(get_api_key),
     ):
         try:
             docs = list(vector_store.docstore.values())
@@ -297,7 +310,11 @@ def init_routes(vector_store: VectorStore):
         response_model=DocumentResponse,
         description="Update an existing document by its ID",
     )
-    async def update_document(document_id: str, document: DocumentCreate):
+    async def update_document(
+        document_id: str,
+        document: DocumentCreate,
+        user_id: Optional[str] = Depends(get_api_key),
+    ):
         try:
             doc_found = None
             for key, doc in vector_store.docstore.items():
@@ -339,7 +356,7 @@ def init_routes(vector_store: VectorStore):
         response_model=StatsResponse,
         description="Get statistics about documents including counts by tags and categories",
     )
-    async def get_document_stats():
+    async def get_document_stats(user_id: Optional[str] = Depends(get_api_key)):
         try:
             docs = list(vector_store.docstore.values())
 
@@ -392,7 +409,7 @@ def init_routes(vector_store: VectorStore):
         response_model=SaveResponse,
         description="Manually trigger saving of the vector store to persistent storage",
     )
-    async def save_vector_store():
+    async def save_vector_store(user_id: Optional[str] = Depends(get_api_key)):
         try:
             logger.info("Manual save triggered via API")
             vector_store.save_index()
