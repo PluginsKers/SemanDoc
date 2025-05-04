@@ -117,8 +117,10 @@ def init_routes(vector_store: VectorStore):
     )
     async def webhook_create_document(
         content: str,
-        tags: Optional[List[str]] = Query(default_factory=list),
-        categories: Optional[List[str]] = Query(default_factory=list),
+        tags: List[str] = Query(..., description="Required tags for the document"),
+        categories: List[str] = Query(
+            ..., description="Required categories for the document"
+        ),
         user_id: Optional[str] = Depends(get_api_key),
     ):
         try:
