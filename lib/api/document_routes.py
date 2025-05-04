@@ -1,7 +1,11 @@
-from fastapi import APIRouter, HTTPException, Header, Query, Depends
+from fastapi import APIRouter, HTTPException, Header, Query, Depends, UploadFile, File
 from typing import List, Optional, Dict
 from pydantic import BaseModel, Field
 import logging
+import time
+from io import BytesIO
+import pandas as pd
+from fastapi.responses import StreamingResponse
 
 from lib.retrieval.vectorstore import VectorStore
 from lib.retrieval.schemas import Document, Metadata, MetadataFilter
@@ -418,6 +422,246 @@ def init_routes(vector_store: VectorStore):
             logger.error(f"Error saving vector store: {e}")
             raise HTTPException(
                 status_code=500, detail=f"Save vector store failed: {str(e)}"
+            )
+
+    @router.get(
+        "/export/xlsx",
+        description="Export documents as Excel file",
+    )
+    async def export_documents_xlsx(
+        skip: int = 0,
+        limit: int = 1000,
+        tag: Optional[str] = None,
+        category: Optional[str] = None,
+        user_id: Optional[str] = Depends(get_api_key),
+    ):
+        try:
+            filters = []
+            if tag:
+                filters.append(lambda doc: tag in doc.metadata.tags)
+            if category:
+                filters.append(lambda doc: category in doc.metadata.categories)
+
+            # Get documents and apply filters
+            documents = []
+            for doc_id, doc in vector_store.docstore.items():
+                if all(f(doc) for f in filters) or not filters:
+                    documents.append(doc)
+
+            # Apply pagination
+            documents = documents[skip : skip + limit]
+
+            # Format start time
+            def format_time(timestamp):
+                if timestamp:
+                    from datetime import datetime
+
+                    # Use datetime object instead of strftime to avoid locale issues
+                    dt = datetime.fromtimestamp(timestamp)
+                    return f"{dt.year}年{dt.month}月{dt.day}日 {dt.hour:02d}:{dt.minute:02d}"
+                return ""
+
+            # Create data with syntax sugar
+            data = []
+            for doc in documents:
+                # Format tags and categories as comma-separated strings
+                tags_str = ",".join(str(tag) for tag in doc.metadata.tags)
+                categories_str = ",".join(str(cat) for cat in doc.metadata.categories)
+
+                # Format start time
+                start_time = format_time(doc.metadata.start_time)
+
+                # End time is not specified in the metadata schema, so we'll leave it empty
+                end_time = ""
+
+                # Create syntax sugar
+                syntax_sugar = f"<{start_time};{categories_str};{tags_str};{end_time}>"
+
+                # Add to content
+                content_with_sugar = f"{doc.content}\n{syntax_sugar}"
+
+                data.append([content_with_sugar])
+
+            # Create DataFrame with only one column and no header
+            df = pd.DataFrame(data)
+
+            # Create Excel file without header
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine="openpyxl") as writer:
+                df.to_excel(writer, index=False, header=False)
+            output.seek(0)
+
+            # Return the Excel file as a downloadable attachment
+            return StreamingResponse(
+                output,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": "attachment; filename=documents.xlsx"},
+            )
+        except Exception as e:
+            logger.error(f"Error exporting documents as XLSX: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"Export documents as XLSX failed: {str(e)}"
+            )
+
+    @router.post(
+        "/upload/xlsx",
+        response_model=List[DocumentResponse],
+        description="Upload and parse Excel file to add documents",
+    )
+    async def upload_documents_xlsx(
+        file: UploadFile = File(...),
+        user_id: Optional[str] = Depends(get_api_key),
+    ):
+        try:
+            logger.info(f"Received file upload: {file.filename}")
+
+            # Check if file is an Excel file
+            if not file.filename.endswith((".xlsx", ".xls")):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Only Excel files (.xlsx, .xls) are supported",
+                )
+
+            # Read Excel file
+            try:
+                content = await file.read()
+                excel_data = BytesIO(content)
+            except Exception as e:
+                logger.error(f"Error reading uploaded file: {e}")
+                raise HTTPException(
+                    status_code=400, detail=f"Error reading uploaded file: {str(e)}"
+                )
+
+            try:
+                # Try to read without headers since we expect no headers
+                df = pd.read_excel(excel_data, header=None)
+            except Exception as e:
+                logger.error(f"Error parsing Excel file: {e}")
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid Excel file format: {str(e)}"
+                )
+
+            if df.empty:
+                raise HTTPException(status_code=400, detail="Excel file is empty")
+
+            # Process rows and extract syntax sugar
+            documents = []
+            for _, row in df.iterrows():
+                # Get content from first column
+                if len(row) == 0 or pd.isna(row[0]):
+                    continue
+
+                content_with_sugar = str(row[0]).strip()
+
+                # Extract content and syntax sugar
+                content = content_with_sugar
+                tags = []
+                categories = []
+                start_time = None
+                end_time = None
+
+                # Find syntax sugar pattern <start_time;categories;tags;end_time>
+                import re
+
+                syntax_pattern = r"<([^;]*);([^;]*);([^;]*);([^;>]*)>"
+                match = re.search(syntax_pattern, content_with_sugar)
+
+                if match:
+                    # Remove syntax sugar from content
+                    content = content_with_sugar.replace(match.group(0), "").strip()
+
+                    # Extract metadata from syntax sugar
+                    start_time_str = match.group(1).strip()
+                    categories_str = match.group(2).strip()
+                    tags_str = match.group(3).strip()
+                    end_time_str = match.group(4).strip()
+
+                    # Parse categories
+                    if categories_str:
+                        categories = [
+                            cat.strip()
+                            for cat in categories_str.split(",")
+                            if cat.strip()
+                        ]
+
+                    # Parse tags
+                    if tags_str:
+                        tags = [
+                            tag.strip() for tag in tags_str.split(",") if tag.strip()
+                        ]
+
+                    # Parse start time
+                    if start_time_str:
+                        try:
+                            import time
+                            from datetime import datetime
+
+                            # Parse Chinese date format
+                            start_time = datetime.strptime(
+                                start_time_str, "%Y年%m月%d日 %H:%M"
+                            ).timestamp()
+                        except Exception as e:
+                            logger.warning(
+                                f"Could not parse start time: {start_time_str}, error: {e}"
+                            )
+
+                    # Parse end time if provided
+                    if end_time_str:
+                        try:
+                            from datetime import datetime
+
+                            # Calculate valid_time as seconds from now until end_time
+                            end_timestamp = datetime.strptime(
+                                end_time_str, "%Y年%m月%d日 %H:%M"
+                            ).timestamp()
+
+                            # If we have both start and end time, calculate valid_time
+                            if start_time:
+                                valid_time = int(end_timestamp - start_time)
+                                if valid_time <= 0:
+                                    valid_time = (
+                                        -1
+                                    )  # No expiration if end time <= start time
+                            else:
+                                # If no start time, just use current time
+                                valid_time = int(end_timestamp - time.time())
+                                if valid_time <= 0:
+                                    valid_time = -1  # No expiration if already passed
+                        except Exception as e:
+                            logger.warning(
+                                f"Could not parse end time: {end_time_str}, error: {e}"
+                            )
+                            valid_time = -1  # No expiration
+                    else:
+                        valid_time = -1  # No expiration
+
+                # Create document
+                metadata = Metadata(
+                    tags=tags,
+                    categories=categories,
+                    start_time=start_time,
+                    valid_time=valid_time if "valid_time" in locals() else -1,
+                )
+
+                doc = Document(content=content, metadata=metadata)
+                documents.append(doc)
+
+            if not documents:
+                raise HTTPException(
+                    status_code=400, detail="No valid documents found in the Excel file"
+                )
+
+            # Add documents to vector store
+            logger.info(f"Adding {len(documents)} documents from Excel file")
+            added_docs = vector_store.add_documents(documents)
+
+            return [document_to_response(doc) for doc in added_docs]
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise e
+            logger.error(f"Error uploading Excel file: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"Upload Excel file failed: {str(e)}"
             )
 
     return router
