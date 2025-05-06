@@ -306,14 +306,14 @@ class VectorStore:
         }
         return removed_documents
 
-    def delete_documents_by_ids(self, target_ids: List[int]) -> List[Document]:
-        if target_ids is None or len(target_ids) < 1:
+    def delete_documents_by_id(self, target_id: List[int]) -> List[Document]:
+        if target_id is None or len(target_id) < 1:
             raise ValueError("Parameter target_ids cannot be empty.")
 
         id_to_remove = []
         for _id, doc in self.docstore.items():
             to_remove = False
-            if doc.metadata.ids in target_ids:
+            if doc.metadata.id in target_id:
                 to_remove = True
             if to_remove:
                 id_to_remove.append(_id)
@@ -332,16 +332,16 @@ class VectorStore:
     def add_documents(
         self,
         docs: List[Document],
-        ids: Optional[List[str]] = None,
+        id: Optional[List[str]] = None,
         similarity_threshold: float = 0.9,
     ) -> List[Document]:
         embeds = self.embedding._embed_texts([doc.content for doc in docs])
 
         embeds = np.asarray(embeds, dtype=np.float32)
-        ids = ids or [str(uuid.uuid4()) for _ in docs]
+        id = id or [str(uuid.uuid4()) for _ in docs]
 
         _len_check_if_sized(embeds, docs, "embeds", "docs")
-        _len_check_if_sized(ids, docs, "ids", "docs")
+        _len_check_if_sized(id, docs, "id", "docs")
 
         added_docs = []
 
@@ -372,7 +372,7 @@ class VectorStore:
                     else:
                         self.index.add(np.array([embed], dtype=np.float32))
 
-                    doc_id = ids[i]
+                    doc_id = id[i]
                     self.docstore[doc_id] = doc
                     self.index_to_docstore_id[len(self.index_to_docstore_id)] = doc_id
                     added_docs.append(doc)

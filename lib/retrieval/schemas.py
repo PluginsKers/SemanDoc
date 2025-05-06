@@ -6,7 +6,7 @@ import uuid
 
 @dataclass
 class Metadata:
-    ids: str | None = None
+    id: str | None = None
     valid_time: int = -1
     start_time: float | None = None
     tags: List[Any] = field(default_factory=list)
@@ -15,8 +15,8 @@ class Metadata:
     _is_valid: Optional[bool] = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
-        if self.ids is None:
-            self.ids = str(uuid.uuid4())
+        if self.id is None:
+            self.id = str(uuid.uuid4())
         if self.start_time is None:
             self.start_time = time.time()
 
@@ -32,7 +32,7 @@ class Metadata:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "ids": self.ids,
+            "id": self.id,
             "valid_time": self.valid_time,
             "start_time": self.start_time,
             "tags": self.tags,
@@ -45,13 +45,13 @@ class Metadata:
 
 @dataclass
 class MetadataFilter:
-    ids: Optional[List[str]] = None
+    id: Optional[List[str]] = None
     tags: Optional[List[Any]] = None
     categories: Optional[List[Any]] = None
     custom_filter: Optional[Callable[[Metadata], bool]] = None
 
     def match(self, metadata: Metadata) -> bool:
-        if self.ids is not None and metadata.ids not in self.ids:
+        if self.id is not None and metadata.id not in self.id:
             return False
 
         if self.tags is not None and len(self.tags) > 0:

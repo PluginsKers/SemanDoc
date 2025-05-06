@@ -17,7 +17,7 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 
 class MetadataBase(BaseModel):
-    ids: Optional[str] = None
+    id: Optional[str] = None
     tags: Optional[List[str]] = Field(default_factory=list)
     categories: Optional[List[str]] = Field(default_factory=list)
 
@@ -74,7 +74,7 @@ def document_to_response(doc: Document) -> DocumentResponse:
 
     return DocumentResponse(
         content=doc.content,
-        metadata=MetadataBase(ids=doc.metadata.ids, tags=tags, categories=categories),
+        metadata=MetadataBase(id=doc.metadata.id, tags=tags, categories=categories),
     )
 
 
@@ -185,7 +185,7 @@ def init_routes(vector_store: VectorStore):
     ):
         try:
             for key, doc in vector_store.docstore.items():
-                if doc.metadata.ids == document_id:
+                if doc.metadata.id == document_id:
                     return document_to_response(doc)
 
             raise HTTPException(
@@ -210,7 +210,7 @@ def init_routes(vector_store: VectorStore):
         try:
             doc_found = None
             for key, doc in vector_store.docstore.items():
-                if doc.metadata.ids == document_id:
+                if doc.metadata.id == document_id:
                     doc_found = doc
                     break
 
@@ -221,7 +221,7 @@ def init_routes(vector_store: VectorStore):
 
             result_doc = document_to_response(doc_found)
 
-            vector_store.delete_documents_by_ids([document_id])
+            vector_store.delete_documents_by_id([document_id])
 
             return result_doc
         except Exception as e:
@@ -324,7 +324,7 @@ def init_routes(vector_store: VectorStore):
         try:
             doc_found = None
             for key, doc in vector_store.docstore.items():
-                if doc.metadata.ids == document_id:
+                if doc.metadata.id == document_id:
                     doc_found = doc
                     break
 
@@ -333,12 +333,12 @@ def init_routes(vector_store: VectorStore):
                     status_code=404, detail=f"Document ID {document_id} does not exist"
                 )
 
-            vector_store.delete_documents_by_ids([document_id])
+            vector_store.delete_documents_by_id([document_id])
 
             new_doc = Document(
                 content=document.content,
                 metadata=Metadata(
-                    ids=document_id,
+                    id=document_id,
                     tags=document.metadata.tags,
                     categories=document.metadata.categories,
                 ),
