@@ -6,9 +6,9 @@ import uuid
 
 @dataclass
 class Metadata:
-    id: str | None = None
+    id: Optional[str] = None
     valid_time: int = -1
-    start_time: float | None = None
+    start_time: Optional[float] = None
     tags: List[Any] = field(default_factory=list)
     categories: List[Any] = field(default_factory=list)
 

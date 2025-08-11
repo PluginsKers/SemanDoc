@@ -21,7 +21,7 @@ persistence_manager: Optional[PersistenceManager] = None
 save_interval: int = 300
 
 vector_store = VectorStore(
-    folder_path="./data", model_name="./models/embedders/m3e-base", device="cpu"
+    folder_path="./data", model_name="./models/embedders/m3e-large", device="cpu"
 )
 
 
